@@ -1,0 +1,48 @@
+xgen-seepage
+Copyright 2026 Kim Jinsoo
+
+Licensed under the Apache License, Version 2.0. When you redistribute this
+software or a derivative work (in source or object form), you must retain
+this attribution notice and a copy of the License, per Section 4 of the
+License. See the LICENSE file.
+
+===============================================================================
+Third-party code attributions
+===============================================================================
+
+Cell value/text heuristics and merged-cell write semantics
+------------------------------------------------------------
+
+`xgen_seepage/_cellfmt.py` (the `maybe_number` / `cell_text` functions) and the
+merge-cell anchor/redirect semantics in `xgen_seepage/live_adapter.py`
+(`MergedCellWriteError`, `allow_merge_redirect`) are adapted from:
+
+  PlateerLab/document-adapter
+  https://github.com/PlateerLab/document-adapter
+  Licensed under the Apache License, Version 2.0
+
+The adapted logic covers only the cell-value-typing heuristic (deciding
+whether a string should be written to Excel as a number or kept as text) and
+the merged-cell write-protection pattern. The COM/xlwings live-workbook
+access layer itself is original to this project — document-adapter operates
+on closed files via openpyxl; xgen-seepage's `live_adapter.py` operates on
+the currently open, in-memory Excel application instance, which has no
+equivalent in document-adapter.
+
+CSV encoding auto-detection strategy
+-------------------------------------
+
+The encoding-detection order in `xgen_seepage/csv_adapter.py`
+(`detect_bom` / `detect_encoding`: BOM signature check, then a preferred
+encoding, then `chardet` with a confidence threshold, then a fixed candidate
+list, then a `latin-1` fallback that always succeeds) is adapted from:
+
+  PlateerLab/xgen-doc2chunk
+  https://github.com/PlateerLab/xgen-doc2chunk
+  (xgen_doc2chunk/core/processor/csv_helper/csv_encoding.py)
+  Licensed under the Apache License, Version 2.0
+
+You may obtain a copy of the Apache License 2.0 at:
+  http://www.apache.org/licenses/LICENSE-2.0
+
+===============================================================================
