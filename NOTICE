@@ -42,6 +42,27 @@ list, then a `latin-1` fallback that always succeeds) is adapted from:
   (xgen_doc2chunk/core/processor/csv_helper/csv_encoding.py)
   Licensed under the Apache License, Version 2.0
 
+Login and agent-tool-bridge wire protocol
+-------------------------------------------
+
+`xgen_seepage/connector/` (`hash.py`, `auth.py`, `bridge.py`) independently
+re-implements, in Python with no code copied, the wire protocol documented by
+reading:
+
+  PlateerLab/xgen-connector
+  https://github.com/PlateerLab/xgen-connector
+  (src/core/hash.ts, src/core/auth.ts, src/core/client.ts, src/main/mcp-bridge.ts)
+  Licensed under the Apache License, Version 2.0
+
+Specifically: the `/api/auth/login` request/response shape and the
+SHA-256-hex password-hashing requirement (`hash.py`/`auth.py`), and the
+`/api/tools/ws/connector-mcp/{user_id}` WebSocket frame protocol — `hello`/
+`ping` client frames and `ready`/`mcp_call` server frames, answered with
+`mcp_result` (`bridge.py`). xgen-seepage does not depend on xgen-connector at
+runtime and does not require it to be installed; only the protocol shape
+(endpoint paths, JSON field names, message types) was confirmed by reading
+that project's source, not copied from it.
+
 You may obtain a copy of the Apache License 2.0 at:
   http://www.apache.org/licenses/LICENSE-2.0
 

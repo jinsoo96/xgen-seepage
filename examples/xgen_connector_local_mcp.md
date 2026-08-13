@@ -1,8 +1,15 @@
-# xgen-connector의 "로컬 MCP"에 xgen-seepage 등록하기
+# 대안 경로 — xgen-connector의 "로컬 MCP"에 xgen-seepage 등록하기
 
-`xgen-connector`(PlateerLab, 데스크톱 XGEN 클라이언트)는 이미 로컬 MCP 서버를
-XGEN 에이전트 세션에 자동으로 연결해 주는 브릿지를 갖고 있다. xgen-seepage는
-그 위에 등록만 하면 된다 — 별도 워크플로우 편집이나 코드 수정이 필요 없다.
+> ⚠️ **이건 대안 경로다, 기본 경로가 아니다.** xgen-seepage의 기본 사용법은
+> `xgen-seepage login` + `xgen-seepage run`으로 XGEN 서버에 **직접** 붙는
+> 것이고, xgen-connector가 설치돼 있을 필요가 전혀 없다(README·`ARCHITECTURE.md`
+> §4 참조). 이 문서는 **이미 xgen-connector를 쓰고 있어서** 그 앱의 채팅
+> 창/오버레이에서 곧바로 도구를 쓰고 싶은 경우를 위한 것이다.
+
+`xgen-connector`(PlateerLab, 데스크톱 XGEN 클라이언트)는 로컬 MCP 서버를
+XGEN 에이전트 세션에 자동으로 연결해 주는 브릿지를 갖고 있다. `xgen-seepage-mcp`
+(stdio MCP 서버)를 그 위에 등록만 하면 된다 — 별도 워크플로우 편집이나 코드
+수정이 필요 없다.
 
 ## 1. xgen-seepage 설치
 

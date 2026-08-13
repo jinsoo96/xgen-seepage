@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xgen-seepage"
-version = "0.1.0"
-description = "Offline-installable XGEN connector for Excel/CSV — live in-workbook editing (formulas included) via xlwings, plus CSV read/write. No task pane, no internet required."
+version = "0.2.0"
+description = "Standalone, offline-installable XGEN connector for Excel/CSV — logs into an XGEN server directly (own auth, own agent-tool bridge, no xgen-connector dependency) and lets XGEN agents edit live-open Excel workbooks and CSV files, formulas included."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -49,15 +49,30 @@ dependencies = [
     # mcp 2.x는 Server.list_tools/call_tool 데코레이터와 Tool(inputSchema=)를
     # 제거해 mcp_server.py가 import 단계에서 죽는다(document-adapter와 동일 이슈).
     "mcp>=1.0,<2",
+    # connector/ — XGEN 서버에 직접 로그인 + 에이전트-도구 WebSocket 브릿지.
+    # xgen-connector(Electron)에 의존하지 않는 독립 구현이라 이 셋은 필수.
+    "httpx>=0.27",
+    "websockets>=13",
+    "keyring>=24",
 ]
 
 [project.optional-dependencies]
 # 라이브(열려 있는 통합문서) 편집에만 필요. csv_adapter만 쓸 거면 불필요.
 live = ["xlwings>=0.31"]
 claude = ["anthropic>=0.40"]
-dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.11"]
+dev = [
+    "pytest>=8",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+    "mypy>=1.11",
+    # 테스트 전용 — connector 브릿지 통합테스트에서 가짜 XGEN 서버(HTTP+WS)를 띄우는 데만 씀.
+    "aiohttp>=3.10",
+]
+# 폐쇄망용 단일 오프라인 설치파일을 만들 때만 필요(빌드머신 전용, 최종 설치는 무관).
+build = ["pyinstaller>=6.10"]
 
 [project.scripts]
+xgen-seepage = "xgen_seepage.connector.app:main"
 xgen-seepage-mcp = "xgen_seepage.mcp_server:main_sync"
 
 [project.urls]
@@ -69,6 +84,9 @@ Changelog = "https://github.com/jinsoo96/xgen-seepage/releases"
 [tool.setuptools.packages.find]
 include = ["xgen_seepage*"]
 exclude = ["tests*", "examples*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
 
 [tool.ruff]
 target-version = "py310"
