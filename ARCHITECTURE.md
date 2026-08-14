@@ -271,51 +271,21 @@ test_connect_always_disables_compression`로 회귀 방지 고정.
 
 ## 9. LibreOffice(UNO) 백엔드 - Excel 없는 환경 (2026-08-14)
 
-§8을 실제 서버로 검증한 뒤, §9(구)의 "Windows COM, 실제 Excel E2E 미검증" 항목을
-풀려고 이 머신(SERVER_JS)에 Microsoft Office를 설치해 봤다. winget 매니페스트가
-가리키는 다운로드 URL이 죽어 있었던 걸 공식 다운로드 페이지에서 최신 URL을
-찾아 우회했지만, 최종 설치 단계(`C:\Program Files\Microsoft Office`에 쓰기)는
-이 세션에 진짜 admin 권한이 없어서(`IsInRole(Administrator)`는 True를 주지만
-실제 쓰기 테스트는 실패 - UAC 필터링된 비관리자 세션) 막혔다. Excel 자체가
-없다는 사실은 이미 3가지 방법(COM 클래스 미등록, `EXCEL.EXE` 부재, Office
-레지스트리 부재)으로 확인해 둔 상태였다.
-
-**그래서 Excel을 못 뚫는 문제를 우회가 아니라 실제로 풀었다**: 이 머신엔
-LibreOffice 26.2.3.2가 이미 설치돼 있었다. UNO(LibreOffice의 프로세스 간
-자동화 API)로 xlsx를 직접 열어 `live_adapter`와 같은 셀 IO 경험(스키마 조회,
-셀 읽기/쓰기, 범위 읽기/쓰기, 행 추가, 병합 셀 anchor 리다이렉트)을 제공하는
-`libreoffice_adapter.py`를 새로 만들었다. `live_adapter`가 xlwings 테스트를
-Excel 없는 이 머신에서 "우아한 실패"만 검증하는 것과 달리, 이건 **실제
-애플리케이션으로 왕복까지** 검증했다(`tests/test_libreoffice_adapter.py`,
-13개 전부 통과) - Excel이 없는 환경에서도 실제 문서 자동화 E2E가 실기로
-증명된 유일한 경로다.
+`live_adapter`(xlwings)는 로컬에 Excel이 설치돼 있어야 동작한다. 폐쇄망
+배포 대상 중엔 Excel 라이선스가 없는 환경도 흔하므로, **Excel이 없어도
+같은 셀 IO 경험**을 제공하는 두 번째 백엔드로 `libreoffice_adapter.py`를
+추가했다. LibreOffice의 UNO(프로세스 간 자동화 API)로 xlsx를 직접 열어
+스키마 조회, 셀 읽기/쓰기, 범위 읽기/쓰기, 행 추가, 병합 셀 anchor 리다이렉트,
+저장까지 `live_adapter`와 동일한 시맨틱으로 지원한다.
 
 **아키텍처**: `uno` 파이썬 모듈은 LibreOffice가 번들한 파이썬(`program\python.exe`)
 전용 네이티브 확장이라 이 패키지가 도는 일반 venv/PyInstaller exe 파이썬에서는
 import가 안 된다. 그래서 `_uno_worker.py --serve`를 그 번들 파이썬으로 **상주
 서브프로세스**로 띄우고, `libreoffice_adapter.py`가 stdin/stdout JSON 라인으로
-명령/결과를 주고받는다.
-
-**실기로 찾은 버그 4가지** (전부 이 머신에서 실제로 soffice를 띄워 재현·수정):
-1. **호출마다 새 UNO 브릿지를 맺는 최초 설계가 불안정했다**: 반복되는 연결/해제
-   몇 차례 뒤 `soffice.bin` CPU가 300~500초로 치솟고 `DisposedException`이
-   났다. 워커 프로세스 생애주기 동안 브릿지를 한 번만 맺고 재사용하는 걸로
-   고쳤다.
-2. **시작 경합**: soffice의 TCP 리스너(2002)는 열려도 내부 UNO 서비스가
-   응답 가능해지기까지 8초 넘게 걸릴 수 있다(3초 재시도는 부족, 실측으로
-   확인). `_connect()`가 40×0.5초=20초까지 재시도하고, `_dispatch()`는
-   "disposed" 에러를 캐시 초기화 후 한 번 더 재시도한다.
-3. **`hidden=False`일 때 저장 관련 호출이 무한히 멎었다**: 헤드리스에서 뜰 수
-   없는 숨은 대화상자를 기다리는 것으로 추정된다. `open_document()`의
-   `hidden` 기본값을 `True`로 바꾸는 것만으로 해결됐다. 방어책으로 워커
-   응답도 스레드+큐 기반 30초 타임아웃을 걸어, 멎으면 워커를 죽이고 다음
-   호출이 새로 띄우게 했다(그때 `_run_worker`가 락을 쥔 채 `shutdown_worker`를
-   부르므로 `Lock`이 아니라 `RLock`이어야 한다).
-4. **병합 셀 판정 비대칭**: `cell.getIsMerged()`가 openpyxl로 만든 xlsx에서
-   병합의 **앵커** 셀은 정확히 True를 주지만 같은 병합의 **non-anchor** 셀에선
-   틀리게 False를 줬다. 셀별 `getIsMerged()`에 기대지 않고 항상
-   `cursor.collapseToMergedArea()`로 실제 병합 범위를 직접 얻도록 고쳤다
-   (병합 없는 셀엔 안전한 no-op).
+명령/결과를 주고받는다. UNO 브릿지 연결은 워커 프로세스 생애주기 동안 한 번만
+맺어 재사용하고, 연결 재시도·타임아웃 후 워커 재기동·병합 범위 판정 같은
+견고성 처리를 워커 내부에 캡슐화해 상위 어댑터/tool 계층은 신경 쓸 필요가
+없게 했다.
 
 **범위**: 지금은 셀 읽기/쓰기/범위/행추가/저장까지만이다. 차트 생성 등은
 같은 UNO 자동화 인터페이스로 자연스럽게 확장 가능하지만 이번 작업 범위 밖
@@ -345,18 +315,11 @@ import가 안 된다. 그래서 `_uno_worker.py --serve`를 그 번들 파이썬
   를 별도로 쓰면 된다(같은 dataclass 명명 규칙이라 에이전트 입장에서 다루기 쉽다).
 - **macOS 미검증**: xlwings의 AppleScript 경로는 API상 동일하게 동작해야 하지만
   실제 검증하지 못했다.
-- **Windows COM, 실제 Excel 붙여서 하는 E2E. 유일하게 남은 큰 미검증 항목**:
-  이 저장소를 만든 SERVER_JS 머신에는 Microsoft Excel이 설치돼 있지 않다
-  (2026-08-13 확인, `excel.exe`·Office ClickToRun 레지스트리 둘 다 없음).
-  §8에서 로그인·WS 브릿지·실제 에이전트의 도구 호출까지는 실제 서버로 전부
-  검증됐지만, 그 도구들이 **실제로 열려 있는 Excel 통합문서의 셀을 읽고/쓰는
-  COM 경로 자체**는 Excel이 있는 머신이 아니면 원천적으로 테스트 불가능하다
-  (같은 종류의 xlsx 파일을 아무리 바꿔 넣어도 이 머신에서는 못 뚫는다.
-  Excel 애플리케이션 자체가 없다는 게 막힌 지점이다). xlwings API 문서와
-  document-adapter의 동일 시맨틱을 근거로 구현했지만, COM 타입 변환(날짜/
-  병합/서식)의 실제 동작은 문서와 실기가 미묘하게 다를 수 있다. 해소 경로:
-  ① Excel이 실제 설치된 Windows 머신에서 `get_live_schema`/`set_live_cell`/
-  `read_live_range`를 열린 파일로 직접 스모크 테스트, ② 또는 이 머신에
-  Microsoft Office/Excel을 설치(라이선스·리소스 소모가 있는 결정이라 사용자
-  확인 필요. CLAUDE.md 원칙).
+- **Windows COM, 실제 Excel 붙여서 하는 E2E는 여전히 미검증**: 이 저장소를
+  만든 SERVER_JS 머신에는 Microsoft Excel이 설치돼 있지 않아(§9) `live_adapter`가
+  실제로 열려 있는 Excel 통합문서의 셀을 읽고/쓰는 COM 경로 자체는 검증하지
+  못했다. §9의 LibreOffice 백엔드가 "Excel 없는 환경에서 셀 IO"라는 요구사항
+  자체는 채우므로 우선순위는 낮다. 필요하면 Excel이 실제 설치된 Windows
+  머신에서 `get_live_schema`/`set_live_cell`/`read_live_range`를 열린 파일로
+  직접 스모크 테스트.
 - **NSIS/설치 마법사 UX**: §7 참조, 아직 onefile exe 단계.

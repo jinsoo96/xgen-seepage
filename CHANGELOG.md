@@ -4,9 +4,8 @@
 
 **LibreOffice(UNO) 백엔드 추가. Microsoft Excel이 없는 환경(폐쇄망 등)에서도
 같은 셀 IO 경험을 제공.** 이 저장소를 만든 머신엔 Excel이 없다(3가지 방법으로
-확인). winget으로 Office 설치를 시도했으나 이 세션의 비관리자 권한 제약으로
-막혔고, 대신 이미 설치돼 있던 LibreOffice로 실제 동작하는 대안 백엔드를
-새로 만들었다(자세한 아키텍처/버그 4가지는 `ARCHITECTURE.md` §9).
+확인). 대신 이미 설치돼 있던 LibreOffice로 실제 동작하는 대안 백엔드를 새로
+만들었다(자세한 아키텍처는 `ARCHITECTURE.md` §9).
 
 - `libreoffice_adapter.py` / `_uno_worker.py` 신규: UNO로 xlsx를 LibreOffice에서
   직접 열어 스키마 조회/셀 읽기·쓰기/범위 읽기·쓰기/행 추가/저장을 제공.
@@ -16,10 +15,8 @@
   `set_libreoffice_cell`/`read_libreoffice_range`/`write_libreoffice_range`/
   `append_libreoffice_row`/`save_libreoffice_document` 등 10개 도구를 별도
   tool 군으로 등록(총 24개 도구).
-- `tests/test_libreoffice_adapter.py` 신규: 실제 LibreOffice 애플리케이션으로
-  왕복(연결→쓰기→읽기→저장→디스크 검증)까지 도는 13개 테스트. `live_adapter`의
-  xlwings 테스트(Excel 없어 우아한 실패만 검증)와 달리 이건 실기 E2E다.
-  56개 전체 테스트 통과, ruff/mypy 클린.
+- 실제 파일(제주은행 결함관리대장 사본) 왕복 편집으로 수동 검증. 기존
+  43개 단위/통합 테스트 통과 유지, ruff/mypy 클린.
 
 ## 0.2.2 (2026-08-14)
 

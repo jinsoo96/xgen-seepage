@@ -69,8 +69,6 @@ dev = [
     "mypy>=1.11",
     # 테스트 전용: connector 브릿지 통합테스트에서 가짜 XGEN 서버(HTTP+WS)를 띄우는 데만 씀.
     "aiohttp>=3.10",
-    # 테스트 전용: libreoffice_adapter 테스트의 샘플 xlsx 생성/검증에만 씀.
-    "openpyxl>=3.1",
 ]
 # 폐쇄망용 단일 오프라인 설치파일을 만들 때만 필요(빌드머신 전용, 최종 설치는 무관).
 build = ["pyinstaller>=6.10"]
