@@ -113,7 +113,14 @@ class ConnectorMcpBridge:
         ssl_kwarg: dict[str, Any] = {}
         if self._allow_private_certificate and url.startswith("wss://"):
             ssl_kwarg["ssl"] = relaxed_ssl_context()
-        async with websockets.connect(url, additional_headers=headers, **ssl_kwarg) as ws:
+        # compression=None: 실측(2026-08-13, 실제 XGEN dev 서버)에서 기본값인
+        # permessage-deflate 확장을 켠 채로 접속하면 핸드셰이크는 성공하지만
+        # hello를 보낸 직후 서버 쪽 프록시/게이트웨이가 close 프레임 없이
+        # 연결을 끊었다. 압축을 끄니 즉시 정상적으로 ready가 돌아왔다 -
+        # 이 경로의 중간 인프라가 압축 확장을 못 받는 것으로 보인다.
+        async with websockets.connect(
+            url, additional_headers=headers, compression=None, **ssl_kwarg
+        ) as ws:
             self.status = BridgeStatus(connected=True)
             await self._send_hello(ws)
             heartbeat = asyncio.create_task(self._heartbeat_loop(ws))

@@ -224,7 +224,45 @@ electron-builder NSIS 설정(`build/installer.nsh`)이 그 UX의 참고 자료�
 있다(전용 설치 마법사는 Python 진영에서 보통 NSIS를 그대로, 또는 Inno Setup을
 직접 쓴다. 다음 로드맵).
 
-## 8. 알려진 제약 / 로드맵
+## 8. 실제 XGEN 서버로 끝까지 검증 (2026-08-14)
+
+가짜 서버 상대 테스트만으로는 "진짜 되는지" 증명이 안 된다는 지적을 받고,
+**실제 dev-xgen.x2bee.com 서버 + 실제 계정 + 실제 에이전트**로 전체 경로를
+끝까지 확인했다. 순서대로:
+
+1. **로그인**: 실제 계정으로 `POST /api/auth/login` 성공. `connector/auth.py`
+   `hash.py`의 SHA-256 규약이 실제 게이트웨이와 정확히 일치함을 확인.
+2. **WS 에이전트-도구 브릿지 첫 시도에서 진짜 버그 발견**: 연결·인증은 되는데
+   `hello` 전송 직후 close 프레임 없이 연결이 끊겼다. 실제 백엔드 소스
+   (GitLab `xgen-workflow` `controller/tools/connectorMcpWebSocket.py`)를
+   읽어 프로토콜 자체는 맞다는 걸 확인한 뒤, 원인을 좁혀나가 **`websockets`
+   라이브러리가 기본으로 협상하는 permessage-deflate 압축 확장**이 문제임을
+   알아냈다(`compression=None`으로 끄니 즉시 `ready` 응답 수신). §3의 하이브리드
+   프로토콜 문서에 있던 그대로였고, 문제는 클라이언트 라이브러리 기본값이었다.
+3. **실제 도구 카탈로그 14개 등록 확인**: 수정 후 `server_tool_count: 14`로
+   실제 서버에 정상 등록됨을 확인.
+4. **실제 워크플로우로 실제 에이전트 실행**: `agents/harness` 노드 하나로 된
+   최소 테스트 워크플로우를 실제로 `POST /api/agentflow/save`(정확한 요청
+   스키마는 `xgen-frontend` `packages/api-client/src/agentflow.ts`에서 확인.
+   `content` 래핑이 필요함)로 만들어 실제 `POST /api/agentflow/execute/
+   based-id/stream`으로 실행했다. 첫 시도는 dev 서버의 vLLM 모델이 안 떠 있어
+   (`503 No model loaded`) 실패했지만, 로그에 **`[Harness] Connector MCP
+   도구 14개 자동 주입`**이 이미 찍혀 있어 도구 인젝션 자체는 확인됐다.
+   Provider를 Anthropic(Claude Haiku 4.5)으로 바꿔 재실행하자 에이전트가
+   `D:\datasets\assort\products.csv`(실제 로컬 CSV 파일)를 물었을 때 **실제로
+   도구를 호출해 정확한 답을 냈다**: "81행(헤더 포함), 8열, 헤더
+   product_code/product_name/.../cumulative_amount, UTF-8, 쉼표 구분". 전부
+   `csv_adapter`로 직접 확인한 실제 값과 정확히 일치했다.
+
+**즉 로그인 → 도구 등록(WS 브릿지) → 에이전트가 도구 발견 → 실제 호출 → 정확한
+결과 반환까지, "(llm외) 에이전트들의 기능이 동작하게"라는 원래 요구사항의
+핵심 경로가 실제 서버·실제 에이전트로 완전히 검증됐다.** 테스트에 쓴
+`xgen_seepage_verify` 워크플로우는 검증 후 서버에서 삭제했다.
+
+`bridge.py`의 `compression=None`은 `tests/test_connector_tls.py::
+test_connect_always_disables_compression`로 회귀 방지 고정.
+
+## 9. 알려진 제약 / 로드맵
 
 - **폐쇄망 반입 경로 미정. 실제 조사 결과**: "제주은행" 폐쇄망 사례를 조사해보니,
   이 회사의 기존 폐쇄망 반입은 **전부 Docker 이미지**로 이뤄진다(USB로 물리 반입
@@ -247,12 +285,18 @@ electron-builder NSIS 설정(`build/installer.nsh`)이 그 UX의 참고 자료�
   를 별도로 쓰면 된다(같은 dataclass 명명 규칙이라 에이전트 입장에서 다루기 쉽다).
 - **macOS 미검증**: xlwings의 AppleScript 경로는 API상 동일하게 동작해야 하지만
   실제 검증하지 못했다.
-- **Windows COM, 실제 Excel 붙여서 하는 E2E 미검증**: 이 저장소를 만든 SERVER_JS
-  머신에는 Microsoft Excel이 설치돼 있지 않다(2026-08-13 확인). `csv_adapter`
-  전체, `connector/` 전체(로그인+WS 브릿지 실제 왕복), `live_adapter`의
-  "Excel 없을 때" 우아한 실패 경로는 전부 실제로 돌려서 검증했다(`tests/`).
-  하지만 **실제로 열린 통합문서의 셀을 읽고/쓰는 경로 자체는 Excel이 설치된
-  머신에서 별도 검증이 필요하다**. xlwings API 문서와 document-adapter의
-  동일 시맨틱을 근거로 구현했지만, COM 타입 변환(날짜/병합/서식)의 실제 동작은
-  문서와 실기가 미묘하게 다를 수 있다.
+- **Windows COM, 실제 Excel 붙여서 하는 E2E. 유일하게 남은 큰 미검증 항목**:
+  이 저장소를 만든 SERVER_JS 머신에는 Microsoft Excel이 설치돼 있지 않다
+  (2026-08-13 확인, `excel.exe`·Office ClickToRun 레지스트리 둘 다 없음).
+  §8에서 로그인·WS 브릿지·실제 에이전트의 도구 호출까지는 실제 서버로 전부
+  검증됐지만, 그 도구들이 **실제로 열려 있는 Excel 통합문서의 셀을 읽고/쓰는
+  COM 경로 자체**는 Excel이 있는 머신이 아니면 원천적으로 테스트 불가능하다
+  (같은 종류의 xlsx 파일을 아무리 바꿔 넣어도 이 머신에서는 못 뚫는다.
+  Excel 애플리케이션 자체가 없다는 게 막힌 지점이다). xlwings API 문서와
+  document-adapter의 동일 시맨틱을 근거로 구현했지만, COM 타입 변환(날짜/
+  병합/서식)의 실제 동작은 문서와 실기가 미묘하게 다를 수 있다. 해소 경로:
+  ① Excel이 실제 설치된 Windows 머신에서 `get_live_schema`/`set_live_cell`/
+  `read_live_range`를 열린 파일로 직접 스모크 테스트, ② 또는 이 머신에
+  Microsoft Office/Excel을 설치(라이선스·리소스 소모가 있는 결정이라 사용자
+  확인 필요. CLAUDE.md 원칙).
 - **NSIS/설치 마법사 UX**: §7 참조, 아직 onefile exe 단계.

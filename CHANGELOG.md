@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.2.2 (2026-08-14)
+
+**실제 XGEN dev 서버(dev-xgen.x2bee.com) 상대 완전한 엔드투엔드 검증.**
+가짜 서버 테스트만으로는 부족하다는 지적에 따라 실제 계정으로 로그인부터
+실제 에이전트의 도구 호출까지 전부 실측했다(자세한 과정은 `ARCHITECTURE.md`
+§8).
+
+- **실제 버그 수정**: `bridge.py`의 `websockets.connect()`가 기본값인
+  permessage-deflate 압축 확장을 협상하면, 실제 서버 환경에서 `hello`
+  전송 직후 close 프레임 없이 연결이 끊겼다. `compression=None`으로 고정.
+  회귀 테스트 `tests/test_connector_tls.py::
+  test_connect_always_disables_compression` 추가.
+- 실제 서버에 실제 도구 카탈로그 14개 등록 확인(`server_tool_count: 14`).
+- 실제 워크플로우(agents/harness 노드)를 실제로 저장·실행해, 실제 에이전트
+  (Claude Haiku 4.5)가 `mcp_xgen-seepage_inspect_csv`를 실제로 호출해
+  로컬 CSV 파일(`D:\datasets\assort\products.csv`)의 정확한 구조(81행,
+  8열, 헤더 전체, 인코딩, 구분자)를 답하는 것까지 확인. 테스트에 쓴 워크플로우는
+  검증 후 서버에서 삭제.
+- 44개 단위/통합 테스트 통과(로컬), 실제 서버 상대 수동 검증 별도 완료.
+
 ## 0.2.1 (2026-08-13)
 
 - 사용자 요청으로 xgen-connector의 연결 로직을 더 적극적으로 참고: 사설/
