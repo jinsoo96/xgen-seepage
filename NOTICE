@@ -24,7 +24,7 @@ merge-cell anchor/redirect semantics in `xgen_seepage/live_adapter.py`
 The adapted logic covers only the cell-value-typing heuristic (deciding
 whether a string should be written to Excel as a number or kept as text) and
 the merged-cell write-protection pattern. The COM/xlwings live-workbook
-access layer itself is original to this project — document-adapter operates
+access layer itself is original to this project: document-adapter operates
 on closed files via openpyxl; xgen-seepage's `live_adapter.py` operates on
 the currently open, in-memory Excel application instance, which has no
 equivalent in document-adapter.
@@ -56,12 +56,32 @@ reading:
 
 Specifically: the `/api/auth/login` request/response shape and the
 SHA-256-hex password-hashing requirement (`hash.py`/`auth.py`), and the
-`/api/tools/ws/connector-mcp/{user_id}` WebSocket frame protocol — `hello`/
+`/api/tools/ws/connector-mcp/{user_id}` WebSocket frame protocol: `hello`/
 `ping` client frames and `ready`/`mcp_call` server frames, answered with
 `mcp_result` (`bridge.py`). xgen-seepage does not depend on xgen-connector at
 runtime and does not require it to be installed; only the protocol shape
 (endpoint paths, JSON field names, message types) was confirmed by reading
 that project's source, not copied from it.
+
+TLS exception for private/self-signed certificates
+------------------------------------------------------
+
+The `allow_private_certificate` behavior in `xgen_seepage/connector/
+connection_security.py` (used by `http_client.py` and `bridge.py`) serves the
+same purpose as:
+
+  PlateerLab/xgen-connector
+  https://github.com/PlateerLab/xgen-connector
+  (src/main/connection-security.ts: shouldAllowPrivateCertificate,
+  xgenWebSocketTlsOptions)
+  Licensed under the Apache License, Version 2.0
+
+Only the intent (let a user explicitly trust a closed-network XGEN server's
+private CA) was ported; the implementation differs because xgen-connector's
+Electron shell can reach multiple origins and therefore scopes the exception
+by hostname, while xgen-seepage's HTTP/WebSocket clients are single-purpose
+(only ever talk to the one configured server), so a client-wide TLS relax
+achieves the same scoping structurally.
 
 You may obtain a copy of the Apache License 2.0 at:
   http://www.apache.org/licenses/LICENSE-2.0

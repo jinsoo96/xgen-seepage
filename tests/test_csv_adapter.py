@@ -23,7 +23,7 @@ def test_detect_cp949_no_bom(tmp_path: Path) -> None:
     p = tmp_path / "euckr.csv"
     p.write_bytes("이름,부서\n김진수,AI플랫폼\n".encode("cp949"))
     table = csv_adapter.load_table(p)
-    # cp949/euc-kr 둘 다 이 바이트열을 올바르게 디코딩한다 — 어느 쪽으로
+    # cp949/euc-kr 둘 다 이 바이트열을 올바르게 디코딩한다. 어느 쪽으로
     # 감지되든 내용이 깨지지 않는 것이 핵심.
     assert table.header == ["이름", "부서"]
     assert table.rows == [["김진수", "AI플랫폼"]]

@@ -1,4 +1,4 @@
-"""MCP stdio server — XGEN Connector의 로컬 MCP, 또는 Claude Desktop/Code에서
+"""MCP stdio server. XGEN Connector의 로컬 MCP, 또는 Claude Desktop/Code에서
 xgen-seepage 도구를 호출하게 해준다.
 
 실행:
@@ -8,7 +8,7 @@ xgen-seepage 도구를 호출하게 해준다.
 
 XGEN Connector 설정 (Settings → 로컬 MCP)에 command로 위 실행법을 등록하면,
 연결된 XGEN 에이전트(agent_xgen/agent_harness/agent_geny) 세션에 이 도구들이
-자동 주입된다 — 별도 워크플로우 편집이 필요 없다. 자세한 연동 절차는 저장소
+자동 주입된다. 별도 워크플로우 편집이 필요 없다. 자세한 연동 절차는 저장소
 `examples/xgen_connector_local_mcp.md` 참조.
 
 Claude Desktop 설정 예시 (~/Library/Application Support/Claude/claude_desktop_config.json):

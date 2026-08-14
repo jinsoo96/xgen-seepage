@@ -1,13 +1,13 @@
 """xgen-seepage 커넥터 CLI.
 
 설치 후 최초 1회 `xgen-seepage login`으로 XGEN 서버에 로그인해 토큰을 OS
-키체인에 저장하고, `xgen-seepage run`으로 백그라운드 브릿지를 띄운다 —
+키체인에 저장하고, `xgen-seepage run`으로 백그라운드 브릿지를 띄운다.
 그 이후로는 사용자가 XGEN 어디서(웹 UI 등) 어떤 에이전트와 채팅하든, 그
 에이전트가 이 프로세스에 붙은 xlwings/CSV 도구를 자동으로 쓸 수 있다.
 
 비대화형 배포(폐쇄망 대량 설치)를 위해 `login`은 인자/환경변수로도 값을
 받는다: `--server`/`XGEN_SEEPAGE_SERVER_URL`, `--email`/`XGEN_SEEPAGE_EMAIL`,
-`--password`/`XGEN_SEEPAGE_PASSWORD`(권장하지 않음 — 가능하면 대화형 입력).
+`--password`/`XGEN_SEEPAGE_PASSWORD`(권장하지 않음. 가능하면 대화형 입력).
 """
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ from .http_client import ApiError, HttpClient
 
 log = logging.getLogger("xgen-seepage")
 
-# 도구 카탈로그를 광고할 때 쓰는 고정 서버 이름 — hello 프레임의 "server" 필드.
+# 도구 카탈로그를 광고할 때 쓰는 고정 서버 이름. hello 프레임의 "server" 필드.
 SERVER_NAME = "xgen-seepage"
 
 
@@ -34,10 +34,26 @@ def _env(name: str) -> str | None:
     return os.environ.get(f"XGEN_SEEPAGE_{name}")
 
 
+def _env_bool(name: str) -> bool | None:
+    """"true"/"1"/"false"/"0" 파싱. xgen-connector deployment-defaults.ts의
+    optionalBoolean과 같은 규칙(참고 전용, NOTICE 참조)."""
+    raw = _env(name)
+    if raw is None or raw == "":
+        return None
+    if raw.lower() in ("true", "1"):
+        return True
+    if raw.lower() in ("false", "0"):
+        return False
+    raise ValueError(f"XGEN_SEEPAGE_{name} must be true/false/1/0, got {raw!r}")
+
+
 async def cmd_login(args: argparse.Namespace) -> int:
     server_url = args.server or _env("SERVER_URL")
     email = args.email or _env("EMAIL")
     password = args.password or _env("PASSWORD")
+    allow_private_certificate = args.allow_private_certificate
+    if allow_private_certificate is None:
+        allow_private_certificate = _env_bool("ALLOW_PRIVATE_CERTIFICATE") or False
 
     if not server_url:
         server_url = input("XGEN 서버 URL (예: https://xgen.example.com): ").strip()
@@ -46,7 +62,7 @@ async def cmd_login(args: argparse.Namespace) -> int:
     if not password:
         password = getpass.getpass("비밀번호: ")
 
-    http = HttpClient(server_url)
+    http = HttpClient(server_url, allow_private_certificate=allow_private_certificate)
     auth = AuthApi(http)
     try:
         result = await auth.login(email, password)
@@ -57,7 +73,10 @@ async def cmd_login(args: argparse.Namespace) -> int:
         await http.aclose()
 
     cfg = cfgmod.SeepageConfig(
-        server_url=server_url, user_id=result.user_id, username=result.username
+        server_url=server_url,
+        user_id=result.user_id,
+        username=result.username,
+        allow_private_certificate=allow_private_certificate,
     )
     cfgmod.save_config(cfg)
     try:
@@ -84,9 +103,9 @@ async def cmd_status(_args: argparse.Namespace) -> int:
     print(f"서버: {cfg.server_url}")
     print(f"사용자: {cfg.username or '(미상)'} ({cfg.user_id or '?'})")
     if not access:
-        print("토큰 없음 — `xgen-seepage login` 필요")
+        print("토큰 없음. `xgen-seepage login` 필요")
         return 1
-    http = HttpClient(cfg.server_url)
+    http = HttpClient(cfg.server_url, allow_private_certificate=cfg.allow_private_certificate)
     auth = AuthApi(http)
     try:
         user, _ = await auth.validate(access, cfgmod.get_refresh_token())
@@ -96,7 +115,7 @@ async def cmd_status(_args: argparse.Namespace) -> int:
     finally:
         await http.aclose()
     if user is None:
-        print("토큰 만료/무효 — `xgen-seepage login` 다시 필요")
+        print("토큰 만료/무효. `xgen-seepage login` 다시 필요")
         return 1
     print(f"토큰 유효. 역할: {user.roles}, 권한 {len(user.permissions)}개")
     return 0
@@ -135,7 +154,7 @@ async def cmd_run(_args: argparse.Namespace) -> int:
         print("설정된 서버가 없습니다. `xgen-seepage login`을 먼저 실행하세요.", file=sys.stderr)
         return 1
 
-    http = HttpClient(cfg.server_url)
+    http = HttpClient(cfg.server_url, allow_private_certificate=cfg.allow_private_certificate)
     auth = AuthApi(http)
 
     async def get_token() -> str | None:
@@ -149,6 +168,7 @@ async def cmd_run(_args: argparse.Namespace) -> int:
         tool_definitions=tools.TOOL_DEFINITIONS,
         call_tool=tools.call_tool,
         get_token=get_token,
+        allow_private_certificate=cfg.allow_private_certificate,
     )
 
     token = await get_token()
@@ -175,7 +195,13 @@ def build_parser() -> argparse.ArgumentParser:
     login_p = sub.add_parser("login", help="XGEN 서버에 로그인하고 토큰을 저장한다")
     login_p.add_argument("--server", help="XGEN 서버 URL")
     login_p.add_argument("--email", help="로그인 이메일")
-    login_p.add_argument("--password", help="비밀번호(권장하지 않음 — 대화형 입력 사용)")
+    login_p.add_argument("--password", help="비밀번호(권장하지 않음. 대화형 입력 사용)")
+    login_p.add_argument(
+        "--allow-private-certificate",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="사설/자체서명 CA를 쓰는 서버 허용(폐쇄망 내부 인증서). 기본값은 거부",
+    )
     login_p.set_defaults(func=cmd_login)
 
     logout_p = sub.add_parser("logout", help="저장된 토큰을 삭제한다")

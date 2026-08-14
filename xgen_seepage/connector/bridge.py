@@ -5,11 +5,11 @@ XGEN 백엔드의 `/api/tools/ws/connector-mcp/{user_id}` WebSocket에 붙어 �
 서버가 보내는 `mcp_call`을 `xgen_seepage.tools.call_tool`로 실행해
 `mcp_result`로 돌려준다. 로그인한 사용자가 XGEN 어디서(웹 UI 등) 어떤
 에이전트와 채팅하든, 그 에이전트가 이 프로세스에 붙은 xlwings/CSV 도구를
-바로 호출할 수 있게 되는 지점이 여기다 — "(llm외) 에이전트들의 기능이
+바로 호출할 수 있게 되는 지점이 여기다. "(llm외) 에이전트들의 기능이
 동작하게" 라는 요구사항을 채우는 핵심 컴포넌트.
 
 와이어 프로토콜은 PlateerLab/xgen-connector `src/main/mcp-bridge.ts`가 쓰는
-것과 **완전히 동일하다**(참고 전용 확인 — 이 프로젝트는 xgen-connector에
+것과 **완전히 동일하다**(참고 전용 확인. 이 프로젝트는 xgen-connector에
 의존하지 않고 이 프로토콜을 Python으로 독립적으로 재구현한다. NOTICE 참조):
 
   클라이언트→서버: {"type":"hello","catalog_id":<str>,"tools":[...]}
@@ -30,6 +30,8 @@ from urllib.parse import quote
 
 import websockets
 from websockets.exceptions import ConnectionClosed
+
+from .connection_security import relaxed_ssl_context
 
 log = logging.getLogger("xgen-seepage.bridge")
 
@@ -68,11 +70,13 @@ class ConnectorMcpBridge:
         tool_definitions: list[dict[str, Any]],
         call_tool: ToolCallHandler,
         get_token: TokenProvider,
+        allow_private_certificate: bool = False,
     ) -> None:
         self._server_name = server_name
         self._tool_definitions = tool_definitions
         self._call_tool = call_tool
         self._get_token = get_token
+        self._allow_private_certificate = allow_private_certificate
         self.status = BridgeStatus()
         self._stopped = True
         self._catalog_seq = 0
@@ -80,7 +84,7 @@ class ConnectorMcpBridge:
 
     async def run(self, server_url: str, user_id: str) -> None:
         """접속을 유지하며 끊기면 지수 백오프로 재접속한다. stop()이
-        호출될 때까지 반환하지 않는다 — 호출자가 태스크로 감싸 실행한다."""
+        호출될 때까지 반환하지 않는다. 호출자가 태스크로 감싸 실행한다."""
         self._stopped = False
         backoff = RECONNECT_MIN_SECONDS
         while not self._stopped:
@@ -104,7 +108,12 @@ class ConnectorMcpBridge:
         token = await self._get_token()
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         url = ws_url(server_url, user_id)
-        async with websockets.connect(url, additional_headers=headers) as ws:
+        # 사설 CA 예외는 wss:// 에만 의미가 있다. ws:// 에 ssl 컨텍스트를
+        # 넘기면 websockets가 바로 에러를 낸다.
+        ssl_kwarg: dict[str, Any] = {}
+        if self._allow_private_certificate and url.startswith("wss://"):
+            ssl_kwarg["ssl"] = relaxed_ssl_context()
+        async with websockets.connect(url, additional_headers=headers, **ssl_kwarg) as ws:
             self.status = BridgeStatus(connected=True)
             await self._send_hello(ws)
             heartbeat = asyncio.create_task(self._heartbeat_loop(ws))

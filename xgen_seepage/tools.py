@@ -2,7 +2,7 @@
 
 스키마 형태(각 tool = {name, description, input_schema} dict, dispatcher는
 이름→dict 반환 함수, 예외는 {"error":..., "message":...}로 직렬화)는
-PlateerLab/document-adapter의 `tools.py` 관례를 그대로 따른다 — 같은 XGEN
+PlateerLab/document-adapter의 `tools.py` 관례를 그대로 따른다. 같은 XGEN
 세션에서 document-adapter(닫힌 파일)와 xgen-seepage(열린 통합문서) 도구를
 같이 등록해도 LLM이 두 서버를 다른 스타일로 다룰 필요가 없게 하기 위함.
 """
@@ -143,11 +143,11 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "set_live_cell",
         "description": (
-            "지금 화면에 떠 있는 시트의 셀 하나를 즉시 갱신한다 — 파일 저장 없이 "
+            "지금 화면에 떠 있는 시트의 셀 하나를 즉시 갱신한다. 파일 저장 없이 "
             "사용자가 바로 화면에서 변경을 본다. 숫자처럼 보이는 문자열은 자동으로 "
             "숫자로 기록해 SUM 등 기존 수식이 계속 동작하게 한다. as_formula=true면 "
             "value를 '='로 시작하는 수식으로 그대로 쓴다. 병합 셀의 non-anchor "
-            "좌표에 쓰면 MergedCellWriteError — allow_merge_redirect=true로 anchor에 "
+            "좌표에 쓰면 MergedCellWriteError. allow_merge_redirect=true로 anchor에 "
             "리다이렉트하거나 anchor 좌표로 직접 호출한다."
         ),
         "input_schema": {
@@ -168,7 +168,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "name": "read_live_range",
         "description": (
             "직사각형 범위를 값/수식 2차원 배열로 한 번에 읽는다. 셀을 하나씩 "
-            "read하는 것보다 훨씬 빠르다 — 여러 셀을 볼 땐 이 도구를 쓴다. "
+            "read하는 것보다 훨씬 빠르다. 여러 셀을 볼 땐 이 도구를 쓴다. "
             "최대 50,000셀."
         ),
         "input_schema": {
@@ -246,7 +246,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "max_cell_len": {"type": "integer", "default": 60},
                 "has_header": {
                     "type": "boolean", "default": True,
-                    "description": "첫 행을 헤더로 볼지. 자동판별은 신뢰할 수 없어 기본 true — 헤더가 없는 파일이면 false로 명시.",
+                    "description": "첫 행을 헤더로 볼지. 자동판별은 신뢰할 수 없어 기본 true. 헤더가 없는 파일이면 false로 명시.",
                 },
             },
             "required": ["path"],
@@ -316,7 +316,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "name": "open_csv_in_excel",
         "description": (
             "CSV를 로컬 Excel에서 실제로 연다. 연 뒤에는 이 파일을 workbook_id로 "
-            "얻어 get_live_schema/set_live_cell 등 라이브 도구로 다룰 수 있다 — "
+            "얻어 get_live_schema/set_live_cell 등 라이브 도구로 다룰 수 있다. "
             "CSV에 수식을 넣거나 서식을 입히려면 이 경로를 거쳐야 한다(CSV 포맷 "
             "자체엔 수식이 없다)."
         ),

@@ -85,7 +85,7 @@ def test_set_tokens_raises_clear_error_when_keychain_backend_broken(
 ) -> None:
     # 2026-08-13 실측: PyInstaller로 얼린 exe를 대화형 로그온 세션이 아닌
     # 컨텍스트에서 실행하면 keyring의 Windows 백엔드가 keyring.errors 로 안
-    # 감싸인 raw OSError(WinError 1312)를 그대로 던진다 — 여기서 그 상황을
+    # 감싸인 raw OSError(WinError 1312)를 그대로 던진다. 여기서 그 상황을
     # 흉내내 KeyringUnavailableError로 바뀌는지, 원시 예외가 새지 않는지 확인.
     def broken_set_password(_service: str, _key: str, _value: str) -> None:
         raise OSError("WinError 1312: logon session does not exist")

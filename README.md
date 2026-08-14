@@ -4,7 +4,7 @@
 [![MCP](https://img.shields.io/badge/MCP-compatible-blue.svg)](https://modelcontextprotocol.io)
 
 **폐쇄망에서도 설치되는 독립형 XGEN Excel/CSV 커넥터.** 챗지피티나 클로드가
-엑셀 안에 플러그인처럼 붙어서 편집·붙여넣기하는 것의 XGEN 버전 — 단, XGEN
+엑셀 안에 플러그인처럼 붙어서 편집·붙여넣기하는 것의 XGEN 버전. 단, XGEN
 서버에 직접 로그인해서 붙는 **독립 실행 프로그램**이고(다른 앱 설치 불필요),
 인터넷 없이도 설치·운영 가능하다.
 
@@ -12,24 +12,24 @@
 - **`xgen-seepage run`을 상주**시키면, 사용자가 XGEN 어디서 어떤 에이전트와
   채팅하든 그 에이전트가 사용자 로컬 Excel/CSV를 도구로 쓸 수 있게 된다.
 - 지금 로컬 Excel에서 **열려 있는** 통합문서를 실시간으로 읽고 쓴다(수식 포함,
-  파일 저장 불필요 — 사용자가 화면에서 바로 결과를 본다). CSV는 인코딩/구분자를
+  파일 저장 불필요. 사용자가 화면에서 바로 결과를 본다). CSV는 인코딩/구분자를
   자동 감지해 읽고 편집하며, 필요하면 Excel로 올려 같은 라이브 경로로 넘어간다.
 
-- 📦 [ARCHITECTURE.md](ARCHITECTURE.md) — Claude for Excel / ChatGPT for Excel이
+- 📦 [ARCHITECTURE.md](ARCHITECTURE.md). Claude for Excel / ChatGPT for Excel이
   실제로 어떻게 동작하는지 조사한 내용, XGEN 서버 로그인·에이전트-도구 브릿지의
   실제 와이어 프로토콜, PyInstaller 단일 실행파일 패키징과 실제로 찾아 고친
   버그까지 전부.
 
 ## 왜 독립 실행 프로그램인가
 
-Claude for Excel/ChatGPT for Excel은 실제로는 **Office.js 태스크팬 애드인**이다
-— Excel 옆 패널이 Excel JavaScript API로 셀을 읽고 쓴다. 이 플랫폼 자체는
+Claude for Excel/ChatGPT for Excel은 실제로는 **Office.js 태스크팬 애드인**이다.
+Excel 옆 패널이 Excel JavaScript API로 셀을 읽고 쓴다. 이 플랫폼 자체는
 `localhost` 인증서로 오프라인도 가능하지만, 매니페스트 사이드로딩·인증서
 신뢰 설정 등 설치 마찰이 크다.
 
 xgen-seepage는 셀 IO에 **xlwings**(로컬 Excel 프로세스에 COM/AppleScript로
 직접 붙는 라이브러리)를 쓰고, XGEN 서버 연결에는 **자체 구현한 로그인+WebSocket
-브릿지**를 쓴다 — `xgen-connector`(PlateerLab의 다른 XGEN 클라이언트)가 설치돼
+브릿지**를 쓴다. `xgen-connector`(PlateerLab의 다른 XGEN 클라이언트)가 설치돼
 있든 없든, 그 앱의 설정을 전혀 건드리지 않고 독립적으로 동작한다. 자세한 비교와
 근거는 [ARCHITECTURE.md](ARCHITECTURE.md) 참조.
 
@@ -44,7 +44,7 @@ xgen-seepage run                   # 브릿지 상주 시작 (Ctrl+C로 종료)
 ```
 
 **폐쇄망용 (단일 설치파일):** `packaging/` 아래에 PyInstaller 빌드 레시피가
-있다 — 인터넷 있는 머신에서 미리 얼려서 `xgen-seepage-connector.exe` 하나로
+있다. 인터넷 있는 머신에서 미리 얼려서 `xgen-seepage-connector.exe` 하나로
 만든 뒤, 그 실행파일만 폐쇄망에 반입한다.
 
 ```powershell
@@ -54,7 +54,7 @@ python -m PyInstaller --onefile --name xgen-seepage-connector `
 ```
 
 빌드 산출물(`packaging/dist/xgen-seepage-connector.exe`)은 어떤 파이썬도
-설치돼 있지 않은 Windows 머신에서 그대로 실행된다 — `.exe login` /
+설치돼 있지 않은 Windows 머신에서 그대로 실행된다. `.exe login` /
 `.exe run` / `.exe status` / `.exe logout`. 실제로 얼려서 검증한 내용과
 찾아 고친 버그는 `ARCHITECTURE.md` §7 참조.
 
@@ -71,7 +71,7 @@ python -m PyInstaller --onefile --name xgen-seepage-connector `
 | `xgen-seepage status` | 현재 설정·토큰 유효성 확인 |
 | `xgen-seepage logout` | 저장된 토큰 삭제 |
 
-## 파이썬 API — 직접 라이브 편집
+## 파이썬 API. 직접 라이브 편집
 
 ```python
 from xgen_seepage import live_adapter, csv_adapter
@@ -84,7 +84,7 @@ wb_id = books[0].workbook_id
 schema = live_adapter.get_sheet_schema(wb_id, sheet=0)
 print(schema.preview)
 
-# 셀 하나 실시간으로 갱신 — 저장 없이 즉시 화면에 반영됨
+# 셀 하나 실시간으로 갱신. 저장 없이 즉시 화면에 반영됨
 live_adapter.set_cell(wb_id, sheet=0, row=1, col=2, value="1500")
 
 # 수식도 그대로 쓴다
@@ -106,7 +106,7 @@ wb = csv_adapter.open_in_excel("sales_2026.csv")
 live_adapter.set_cell(wb["workbook_id"], sheet=0, row=0, col=3, value="=B1*1.1", as_formula=True)
 ```
 
-## 노출되는 도구 (14개 — `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
+## 노출되는 도구 (14개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
 
 | 도구 | 설명 |
 |---|---|
@@ -124,7 +124,7 @@ live_adapter.set_cell(wb["workbook_id"], sheet=0, row=0, col=3, value="=B1*1.1",
 | `write_csv_table` | CSV 신규 생성/통째 덮어쓰기 |
 | `open_csv_in_excel` | CSV를 로컬 Excel로 열어 라이브 도구로 이어서 편집 |
 
-## 대안 경로 — 이미 xgen-connector나 Claude Desktop을 쓰고 있다면
+## 대안 경로. 이미 xgen-connector나 Claude Desktop을 쓰고 있다면
 
 기본 경로는 위의 독립 `xgen-seepage run`이지만, 이미 `xgen-connector`(또는
 Claude Desktop/Code)를 쓰고 있어서 그쪽 Local MCP 설정에 그냥 얹고 싶다면
@@ -138,19 +138,19 @@ python -m xgen_seepage.mcp_server
 
 절차는 [examples/xgen_connector_local_mcp.md](examples/xgen_connector_local_mcp.md).
 
-## PlateerLab 생태계와의 관계 — 참고만 했다, 의존하지 않는다
+## PlateerLab 생태계와의 관계. 참고만 했다, 의존하지 않는다
 
 이 프로젝트는 회사 GitHub의 기존 레포 세 개를 **로직 참고 자료**로만 썼다.
 런타임에 그 어떤 레포도 설치돼 있을 필요가 없다(자세한 근거는 `NOTICE`,
 설계 판단은 `ARCHITECTURE.md` §3):
 
-- **[document-adapter](https://github.com/PlateerLab/document-adapter)** — 닫힌
+- **[document-adapter](https://github.com/PlateerLab/document-adapter)**. 닫힌
   xlsx 파일 편집(병합 셀·수식)의 원본. **셀 편집 시맨틱만** 이식해 "지금 열려
   있는 통합문서"라는 새 표면에 적용했다. 코드도, 패키지 의존성도 가져오지
   않았다.
-- **[xgen-doc2chunk](https://github.com/PlateerLab/xgen-doc2chunk)** — CSV
+- **[xgen-doc2chunk](https://github.com/PlateerLab/xgen-doc2chunk)**. CSV
   인코딩 자동 감지 전략(BOM→chardet→후보목록→latin-1)의 출처.
-- **[xgen-connector](https://github.com/PlateerLab/xgen-connector)** — 로그인
+- **[xgen-connector](https://github.com/PlateerLab/xgen-connector)**. 로그인
   API(`/api/auth/*`)와 에이전트-도구 WebSocket 브릿지
   (`/api/tools/ws/connector-mcp/{user_id}`)의 와이어 프로토콜을 그 소스에서
   확인하고, **xgen-seepage 자체 코드로 독립 재구현**했다. 이 앱이 설치돼 있을
@@ -166,11 +166,11 @@ pytest tests/ -v
 ruff check xgen_seepage/ tests/
 ```
 
-- `tests/test_csv_adapter.py` — 실제 인코딩(BOM/CP949)·구분자 자동 감지, 셀
+- `tests/test_csv_adapter.py`. 실제 인코딩(BOM/CP949)·구분자 자동 감지, 셀
   편집 왕복, MCP dispatcher 경로(Excel 없이도 전부 동작).
-- `tests/test_live_adapter.py` — xlwings는 설치돼 있지만 실행 중인 Excel이
+- `tests/test_live_adapter.py`. xlwings는 설치돼 있지만 실행 중인 Excel이
   없는 환경에서 라이브 도구들이 명확한 에러로 우아하게 실패하는지 검증.
-- `tests/test_connector_*.py` — 로그인 해싱/설정파일/OS 키체인 왕복, 그리고
+- `tests/test_connector_*.py`. 로그인 해싱/설정파일/OS 키체인 왕복, 그리고
   **가짜 XGEN 서버(aiohttp)를 실제 로컬 소켓에 띄워** login→hello→ready→
   mcp_call→mcp_result 전체 왕복을 실제 코드로 검증(`test_connector_bridge_
   integration.py`).
@@ -180,6 +180,6 @@ ruff check xgen_seepage/ tests/
 
 ## 라이선스
 
-**Apache License 2.0** — [`LICENSE`](LICENSE) / [`NOTICE`](NOTICE) 참조. 이
+**Apache License 2.0**. [`LICENSE`](LICENSE) / [`NOTICE`](NOTICE) 참조. 이
 소프트웨어나 그 파생물을 재배포할 때는 저작권·라이선스 고지와 `NOTICE`
 파일의 출처 표시를 유지해야 합니다(라이선스 §4).

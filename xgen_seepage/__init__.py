@@ -1,4 +1,4 @@
-"""xgen-seepage — 오프라인 설치형 XGEN Excel/CSV 커넥터.
+"""xgen-seepage. 폐쇄망에서도 설치되는 독립형 XGEN Excel/CSV 커넥터.
 
 두 실행 경로:
   - `live_adapter`: 지금 로컬 Excel에서 열려 있는 통합문서를 xlwings(COM/AppleScript)로
@@ -6,8 +6,9 @@
   - `csv_adapter`: CSV 파일을 인코딩/구분자 자동 감지로 읽고 편집한다. 라이브
     Excel로 올리려면 `csv_adapter.open_in_excel`로 넘어간다.
 
-두 어댑터는 `tools.py`에서 MCP tool로 노출되며, `xgen-connector`(PlateerLab)의
-"로컬 MCP" 브릿지에 등록하면 XGEN 에이전트 세션에 자동 연결된다.
+두 어댑터는 `tools.py`에서 MCP tool로 노출되고, `connector/`가 XGEN 서버에
+직접 로그인해 에이전트-도구 WebSocket 브릿지로 광고한다(`xgen-seepage`
+CLI). xgen-connector(PlateerLab)가 설치돼 있을 필요는 없다.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.1"

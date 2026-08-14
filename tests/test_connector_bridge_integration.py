@@ -1,4 +1,4 @@
-"""ConnectorMcpBridge의 진짜 왕복을 검증한다 — 목(mock)으로 대충 흉내내는 게
+"""ConnectorMcpBridge의 진짜 왕복을 검증한다. 목(mock)으로 대충 흉내내는 게
 아니라, aiohttp로 실제 로컬 TCP 소켓에 HTTP(로그인)와 WebSocket(도구 브릿지)
 서버를 띄우고, xgen-seepage의 실제 클라이언트 코드(HttpClient/AuthApi/
 ConnectorMcpBridge)가 그 서버와 실제로 통신하게 한다.
@@ -10,7 +10,7 @@ xgen_seepage.tools.call_tool로 실행 → mcp_result로 정확한 결과를 돌
 
 이게 통과하면 "XGEN 서버를 바라봐서 에이전트 기능이 동작하게" 라는 요구사항의
 와이어 레벨 왕복이 실제로 동작한다는 뜻이다(진짜 XGEN 백엔드가 문서화된
-그대로 응답한다는 전제 하에 — 그 전제 자체는 실제 서버에 붙여서만 최종
+그대로 응답한다는 전제 하에. 그 전제 자체는 실제 서버에 붙여서만 최종
 검증 가능하다. ARCHITECTURE.md 참고)."""
 from __future__ import annotations
 
@@ -133,7 +133,7 @@ async def test_full_login_and_bridge_roundtrip(mock_server) -> None:
 
     run_task = asyncio.create_task(bridge.run(base_url, TEST_USER_ID))
     try:
-        for _ in range(100):  # 최대 5초 폴링 — 서버가 mcp_result 를 받을 때까지
+        for _ in range(100):  # 최대 5초 폴링. 서버가 mcp_result 를 받을 때까지
             if server_state.received_call is not None:
                 break
             await asyncio.sleep(0.05)
@@ -156,6 +156,6 @@ async def test_full_login_and_bridge_roundtrip(mock_server) -> None:
     assert result["name"] == "e2e.csv"
     assert result["preview"] == [["name", "dept"], ["kim", "ai"]]
 
-    # 직접 파일도 같은 값이어야 한다 — 브릿지를 거치며 뭔가 변형되지 않았는지.
+    # 직접 파일도 같은 값이어야 한다. 브릿지를 거치며 뭔가 변형되지 않았는지.
     direct = csv_adapter.get_schema(csv_path)
     assert direct.preview == result["preview"]

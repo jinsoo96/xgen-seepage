@@ -1,4 +1,4 @@
-"""auth.py를 httpx.MockTransport로 검증한다 — 실제 네트워크 없이, XGEN
+"""auth.py를 httpx.MockTransport로 검증한다. 실제 네트워크 없이, XGEN
 게이트웨이가 문서화된 대로 응답한다는 가정 하에 요청 바디/헤더/파싱 경로를
 실제로 돈다(WebSocket 브릿지까지 도는 진짜 E2E는
 tests/test_connector_bridge_integration.py)."""
@@ -25,7 +25,7 @@ def _make_client(handler: httpx.MockTransport) -> HttpClient:
 def _login_handler(request: httpx.Request) -> httpx.Response:
     body = json.loads(request.content)
     assert request.url.path == "/api/auth/login"
-    # 반드시 해시로 보내야 한다 — 평문을 그대로 보내면 실제 게이트웨이에서 항상 실패한다.
+    # 반드시 해시로 보내야 한다. 평문을 그대로 보내면 실제 게이트웨이에서 항상 실패한다.
     if body["password"] == CORRECT_HASH and body["token"] is None:
         return httpx.Response(200, json={
             "success": True, "access_token": "tok-abc", "refresh_token": "ref-abc",

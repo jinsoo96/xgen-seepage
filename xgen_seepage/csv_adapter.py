@@ -3,14 +3,14 @@
 CSV는 XLSX와 달리 셀 단위 랜덤 액세스 포맷이 아니라서, 편집은 전체를
 읽어 메모리에서 고친 뒤 원본 인코딩/구분자를 보존해 통째로 다시 쓰는
 방식(read-modify-write-whole-file)을 쓴다. 파일 자체에는 수식 개념이
-없으므로 `CellContent.formula`는 항상 None이다 — CSV에서 "수식처럼
+없으므로 `CellContent.formula`는 항상 None이다. CSV에서 "수식처럼
 계산되는 셀"이 필요하면 `open_in_excel`로 살아 있는 Excel에 올려
 live_adapter로 넘어가는 편이 맞다(수식은 애초에 스프레드시트 애플리케이션의
 기능이지 CSV 파일 포맷의 기능이 아니다).
 
 인코딩 자동 감지(BOM 우선 → chardet → 후보 목록 순차 시도 → latin-1 최종
 폴백)는 PlateerLab/xgen-doc2chunk의 `csv_helper/csv_encoding.py`와 동일한
-전략을 그대로 이식했다(NOTICE 참조) — 실사용 데이터(EUC-KR로 저장된 국내
+전략을 그대로 이식했다(NOTICE 참조). 실사용 데이터(EUC-KR로 저장된 국내
 공공/사내 CSV 등)에서 검증된 순서이기 때문에 새로 설계하지 않았다.
 """
 from __future__ import annotations
@@ -123,14 +123,14 @@ def load_table(
 ) -> CsvTable:
     """CSV를 읽어 CsvTable로 반환한다.
 
-    `has_header` 자동판별은 일부러 하지 않는다 — stdlib `csv.Sniffer().has_header()`는
+    `has_header` 자동판별은 일부러 하지 않는다. stdlib `csv.Sniffer().has_header()`는
     첫 행과 데이터 행의 컬럼 "타입"을 비교해 판단하는데, 실사용 CSV는 헤더도
     데이터도 전부 문자열인 열이 흔해서(예: "이름,부서" 헤더 다음에 "홍길동,AI팀")
     헤더가 명백히 있는데도 False로 오판하는 경우가 잦다(이 저장소
     `tests/test_csv_adapter.py::test_get_schema_preview`가 그 실패를 실제로
     재현했다). 업무용 표 데이터는 첫 행이 헤더인 경우가 압도적으로 많으므로
     기본값은 True로 고정하고, 헤더가 없는 파일은 호출 측(에이전트 포함)이
-    `has_header=False`를 명시하게 한다 — 조용히 틀리는 것보다 명시적인 편이 낫다.
+    `has_header=False`를 명시하게 한다. 조용히 틀리는 것보다 명시적인 편이 낫다.
     """
     p = Path(path)
     raw = p.read_bytes()
@@ -243,7 +243,7 @@ def write_table(
     header: list[str] | None = None,
     encoding: str = "utf-8-sig",
 ) -> None:
-    """CSV를 새로 만들거나 통째로 덮어쓴다. 기본 인코딩은 utf-8-sig —
+    """CSV를 새로 만들거나 통째로 덮어쓴다. 기본 인코딩은 utf-8-sig다.
     BOM을 붙여야 Excel이 더블클릭으로 열었을 때 한글이 깨지지 않는다."""
     p = Path(path)
     buf = io.StringIO()
@@ -255,11 +255,11 @@ def write_table(
 
 
 def open_in_excel(path: str | Path) -> dict[str, Any]:
-    """CSV를 로컬 Excel에서 실제로 연다 — 이후로는 live_adapter의 도구
+    """CSV를 로컬 Excel에서 실제로 연다. 이후로는 live_adapter의 도구
     (get_live_schema/set_live_cell/...)로 이 파일을 마치 xlsx처럼 실시간
     편집할 수 있다. CSV 자체엔 수식이 없지만, Excel이 열면 셀에 `=SUM(...)`
     같은 수식을 자유롭게 추가할 수 있다(단, "다른 이름으로 저장"하지 않는
-    한 저장 시 수식이 아니라 계산된 값으로 CSV에 남는다 — CSV 포맷의 근본
+    한 저장 시 수식이 아니라 계산된 값으로 CSV에 남는다. CSV 포맷의 근본
     한계이지 이 도구의 제약이 아니다)."""
     from . import live_adapter
 

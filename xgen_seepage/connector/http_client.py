@@ -10,6 +10,8 @@ from typing import Any, Awaitable, Callable
 
 import httpx
 
+from .connection_security import httpx_verify
+
 
 class ApiError(Exception):
     def __init__(self, status: int, message: str, body: Any = None) -> None:
@@ -30,12 +32,18 @@ class HttpClient:
         on_auth_failure: Callable[[], Awaitable[None] | None] | None = None,
         timeout: float = 30.0,
         client: httpx.AsyncClient | None = None,
+        allow_private_certificate: bool = False,
     ) -> None:
         self._base_url = normalize_base_url(base_url)
         self._token: str | None = None
         self._on_auth_failure = on_auth_failure
         self._timeout = timeout
-        self._client = client or httpx.AsyncClient(timeout=timeout)
+        # 사설/자체서명 CA를 쓰는 폐쇄망 XGEN 서버 대응. 이 클라이언트는
+        # 처음부터 base_url 하나에만 접속하므로, 검증을 꺼도 다른 origin으로
+        # 새지 않는다(connection_security.py 참조).
+        self._client = client or httpx.AsyncClient(
+            timeout=timeout, verify=httpx_verify(allow_private_certificate)
+        )
 
     def set_base_url(self, base_url: str) -> None:
         self._base_url = normalize_base_url(base_url)

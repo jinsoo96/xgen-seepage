@@ -10,19 +10,19 @@ ChatGPT for Excel처럼 "지금 화면에 떠 있는 시트를 실시간으로 �
     웹앱이 필요하다. `localhost` 인증서로 오프라인 자체는 가능하지만, 매니페스트
     사이드로딩·인증서 신뢰·SharedRuntime 설정 등 설치 마찰이 크다.
   - xlwings COM 자동화(이 모듈의 접근): `pip install`만으로 끝난다. 웹서버도
-    인증서도 매니페스트도 없다 — 순수 로컬 프로세스 간 통신이라 인터넷 요구사항이
+    인증서도 매니페스트도 없다. 순수 로컬 프로세스 간 통신이라 인터넷 요구사항이
     원천적으로 없다. 대신 Windows/macOS 전용이고 로컬에 Excel 설치가 필요하다.
 자세한 리서치 근거는 저장소 루트 `ARCHITECTURE.md` 참조.
 
 병합 셀 판정과 숫자/텍스트 변환 휴리스틱은 PlateerLab/document-adapter의
-`xlsx_adapter.py`와 동일 시맨틱을 따른다(NOTICE 참조) — 대상이 파일이 아니라
+`xlsx_adapter.py`와 동일 시맨틱을 따른다(NOTICE 참조). 대상이 파일이 아니라
 xlwings Range라는 점만 다르다.
 
 ⚠️ 성능: 각 셀 접근이 COM 왕복 1회다. 시트 전체를 셀 단위로 훑는 것은 느리다.
 그래서 값 읽기는 `Range.value`(2차원 리스트 벌크 반환)를 쓰고, 병합 셀 유무는
 `UsedRange.MergeCells`로 먼저 빠르게 판정한 뒤(병합이 아예 없으면 O(1)),
 있을 때만 셀 단위로 위치를 확인한다. 그마저도 `_MAX_MERGE_SCAN_CELLS`로
-상한을 두고 넘으면 `truncated=True`로 알린다 — 크면 range를 좁혀 다시 부르라는
+상한을 두고 넘으면 `truncated=True`로 알린다. 크면 range를 좁혀 다시 부르라는
 신호다(자세한 근거는 이 파일의 `_merge_map` 참고).
 """
 from __future__ import annotations
@@ -45,7 +45,7 @@ from .base import (
 
 try:
     import xlwings as xw
-except ImportError:  # xlwings는 Windows/macOS 전용 — 미설치 환경에서도 import 자체는 성공해야 함
+except ImportError:  # xlwings는 Windows/macOS 전용. 미설치 환경에서도 import 자체는 성공해야 함
     xw = None  # type: ignore[assignment]
 
 _MAX_MERGE_SCAN_CELLS = 20_000
@@ -57,7 +57,7 @@ def _require_xlwings() -> Any:
         raise ExcelUnavailableError(
             "xlwings가 설치되어 있지 않습니다. `pip install xgen-seepage[live]`로 "
             "설치하세요. 라이브 모드는 Windows 또는 macOS에서 로컬 Excel 실행이 "
-            "필요합니다(오프라인 동작 — 인터넷 불필요)."
+            "필요합니다(오프라인 동작. 인터넷 불필요)."
         )
     return xw
 
@@ -69,7 +69,7 @@ def _workbook_id(app: Any, book: Any) -> str:
 def list_open_workbooks() -> list[WorkbookInfo]:
     """로컬에서 실행 중인 모든 Excel 인스턴스의 열린 통합문서 목록.
 
-    LLM이 어떤 파일을 대상으로 할지 고를 때 항상 먼저 호출해야 한다 —
+    LLM이 어떤 파일을 대상으로 할지 고를 때 항상 먼저 호출해야 한다.
     workbook_id를 생략하면 이후 호출은 "현재 활성 통합문서"를 임의로 집는다.
     """
     xw_ = _require_xlwings()
@@ -145,8 +145,8 @@ def _merge_map(ws: Any, rows: int, cols: int) -> tuple[dict, dict, bool]:
     1단계: `UsedRange.MergeCells`로 병합 유무를 한 번의 COM 호출로 판정한다
     (False = 병합 전혀 없음 → 즉시 빈 결과 반환, 압도적으로 흔한 경우).
     2단계: 병합이 있으면(True 또는 tri-state None=혼합) 셀 단위로 스캔하되
-    `_MAX_MERGE_SCAN_CELLS`를 넘으면 스캔을 멈추고 truncated=True를 반환한다
-    — 무한정 COM 왕복을 하는 대신, 큰 시트는 범위를 좁혀 다시 조회하라는
+    `_MAX_MERGE_SCAN_CELLS`를 넘으면 스캔을 멈추고 truncated=True를 반환한다.
+    무한정 COM 왕복을 하는 대신, 큰 시트는 범위를 좁혀 다시 조회하라는
     신호를 준다.
     """
     if rows <= 0 or cols <= 0:
@@ -249,7 +249,7 @@ def get_cell(workbook_id: str | None, sheet: int | str, row: int, col: int) -> C
     ws = _sheet(workbook_id, sheet)
     rows, cols = _used_dims(ws)
     if row < 0 or col < 0 or row >= max(rows, row + 1) or col >= max(cols, col + 1):
-        # 사용 범위 밖도 read는 허용한다(빈 셀 조회는 자연스러운 요청) — 다만 완전히
+        # 사용 범위 밖도 read는 허용한다(빈 셀 조회는 자연스러운 요청). 다만 완전히
         # 음수거나 시트 범위(1,048,576행 / 16,384열)를 넘으면 명백한 오류로 거절.
         if row < 0 or col < 0 or row >= 1_048_576 or col >= 16_384:
             raise CellOutOfBoundsError(f"cell ({row},{col}) is out of the sheet's valid range")
@@ -300,7 +300,7 @@ def set_cell(
     as_formula: bool = False,
     allow_merge_redirect: bool = False,
 ) -> str:
-    """살아 있는 시트의 셀 하나를 즉시 갱신한다(파일 저장 불필요 — 사용자가
+    """살아 있는 시트의 셀 하나를 즉시 갱신한다(파일 저장 불필요. 사용자가
     화면에서 바로 확인한다). `as_formula=True`면 `value`를 수식 문자열
     (`=A1+B1`)로 그대로 쓴다. 아니면 숫자처럼 보이는 문자열은 숫자로,
     나머지는 문자로 자동 판단해서 쓴다(_cellfmt.coerce_for_write)."""
@@ -338,7 +338,7 @@ def read_range(
     col1: int,
 ) -> dict[str, Any]:
     """직사각형 범위를 값/수식 2차원 배열로 벌크 반환한다(셀 단위 호출보다
-    훨씬 빠름 — Range.value/Range.formula는 COM 호출 1회로 전체를 가져온다)."""
+    훨씬 빠름. Range.value/Range.formula는 COM 호출 1회로 전체를 가져온다)."""
     if row1 < row0 or col1 < col0:
         raise ValueError("row1/col1 must be >= row0/col0")
     n_cells = (row1 - row0 + 1) * (col1 - col0 + 1)
@@ -368,7 +368,7 @@ def write_range(
     rows: list[list[str]],
 ) -> None:
     """직사각형 범위를 한 번에 덮어쓴다. 각 셀은 set_cell과 동일한 숫자/문자
-    휴리스틱을 적용한다(수식을 쓰려면 셀 값 앞에 '='를 붙이면 된다 — Excel
+    휴리스틱을 적용한다(수식을 쓰려면 셀 값 앞에 '='를 붙이면 된다. Excel
     자체가 '='로 시작하는 문자열 대입을 수식으로 해석한다)."""
     if not rows:
         return
@@ -396,7 +396,7 @@ def activate(workbook_id: str | None, sheet: int | str | None = None,
     """Excel 창을 앞으로 가져오고, 필요하면 시트를 전환하고 셀을 선택한다.
 
     기능적으로는 필요 없지만, 에이전트가 "지금 이 셀을 보고 있다"는 걸
-    사용자가 눈으로 따라갈 수 있게 한다 — Claude/ChatGPT for Excel과 같은
+    사용자가 눈으로 따라갈 수 있게 한다. Claude/ChatGPT for Excel과 같은
     체감을 위한 UX 보조 도구다.
     """
     book = _resolve_book(workbook_id)

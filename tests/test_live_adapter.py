@@ -1,5 +1,5 @@
 """live_adapter는 xlwings/실제 Excel 없이도 이 스위트가 도는 CI/개발머신에서
-"우아하게 실패"해야 한다 — 이 저장소를 빌드한 SERVER_JS에는 Excel이 설치돼
+"우아하게 실패"해야 한다. 이 저장소를 빌드한 SERVER_JS에는 Excel이 설치돼
 있지 않아, 아래 테스트들이 검증하는 경로가 바로 그 실제 운영 환경이다.
 xlwings가 설치돼 있고 정상 import된다는 전제 하에, "실행 중인 Excel이 없을
 때" 도구들이 명확한 에러를 내는지 확인한다(조용히 죽거나 원인불명 COM 예외를
@@ -13,7 +13,7 @@ from xgen_seepage.base import ExcelUnavailableError, WorkbookNotFoundError
 
 
 def test_list_open_workbooks_empty_without_running_excel() -> None:
-    # xlwings는 설치돼 있지만 이 머신엔 Excel 자체가 없다 — 빈 목록이 되어야
+    # xlwings는 설치돼 있지만 이 머신엔 Excel 자체가 없다. 빈 목록이 되어야
     # 하며, COM 예외가 새어나오면 안 된다.
     books = live_adapter.list_open_workbooks()
     assert books == []

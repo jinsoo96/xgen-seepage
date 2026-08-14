@@ -1,6 +1,6 @@
 """xgen-seepage 공통 타입.
 
-dataclass 명명 규칙은 PlateerLab/document-adapter의 `base.py`를 그대로 따른다 —
+dataclass 명명 규칙은 PlateerLab/document-adapter의 `base.py`를 그대로 따른다.
 같은 XGEN 세션에서 두 MCP 서버(document-adapter: 닫힌 파일 편집,
 xgen-seepage: 열려 있는 통합문서 실시간 편집)의 도구를 함께 쓰는 LLM이
 스키마마다 다른 관례를 재학습하지 않도록 하기 위함이다. 근거는 저장소
@@ -38,7 +38,7 @@ class ExcelUnavailableError(SeepageError):
 
 
 class RangeTooLargeError(SeepageError, ValueError):
-    """요청한 범위가 안전 상한을 넘음 — COM 호출 폭주/컨텍스트 폭발 방지."""
+    """요청한 범위가 안전 상한을 넘음. COM 호출 폭주/컨텍스트 폭발 방지."""
 
 
 @dataclass
@@ -53,7 +53,7 @@ class MergeInfo:
 @dataclass
 class CellContent:
     """셀 하나의 전체 정보. `value`는 계산된 값(수식이면 그 결과),
-    `formula`는 수식 문자열(수식이 아니면 None) — 두 필드를 분리해
+    `formula`는 수식 문자열(수식이 아니면 None). 두 필드를 분리해
     "무엇이 적혀 있고 무엇으로 계산됐는지"를 LLM이 혼동하지 않게 한다."""
 
     row: int

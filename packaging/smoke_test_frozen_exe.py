@@ -1,4 +1,4 @@
-"""수동 검증 스크립트(테스트 스위트에 포함 안 함) — PyInstaller로 얼린
+"""수동 검증 스크립트(테스트 스위트에 포함 안 함). PyInstaller로 얼린
 xgen-seepage-connector.exe를 실제 서브프로세스로 띄워 가짜 XGEN 서버에
 login + run(WS 브릿지)까지 진짜로 시켜본다. venv 소스가 아니라 **얼린
 바이너리 자체**가 로그인하고 hello 프레임을 보내는지 확인하는 최종
@@ -57,7 +57,7 @@ async def handle_ws(request: web.Request) -> web.WebSocketResponse:
 
 async def main() -> int:
     if not EXE.exists():
-        print(f"frozen exe not found at {EXE} — build it first", file=sys.stderr)
+        print(f"frozen exe not found at {EXE}. build it first", file=sys.stderr)
         return 1
 
     app = web.Application()
@@ -85,7 +85,7 @@ async def main() -> int:
         await runner.cleanup()
         return 1
 
-    print("== running frozen exe: run (bridge) — will wait for hello then kill it ==")
+    print("== running frozen exe: run (bridge). will wait for hello then kill it ==")
     run_proc = subprocess.Popen([str(EXE), "run"], env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
         await asyncio.wait_for(hello_received.wait(), timeout=15)
@@ -105,7 +105,7 @@ async def main() -> int:
     subprocess.run([str(EXE), "logout"], env=env, capture_output=True, text=True, timeout=15)
 
     if not ok:
-        print("FROZEN EXE NEVER SENT hello OVER THE WS BRIDGE — FAIL")
+        print("FROZEN EXE NEVER SENT hello OVER THE WS BRIDGE. FAIL")
         return 1
 
     msg = hello_payload["msg"]
