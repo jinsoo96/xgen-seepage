@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xgen-seepage"
-version = "0.2.2"
-description = "Standalone, offline-installable XGEN connector for Excel/CSV: logs into an XGEN server directly (own auth, own agent-tool bridge, no xgen-connector dependency) and lets XGEN agents edit live-open Excel workbooks and CSV files, formulas included."
+version = "0.3.0"
+description = "Standalone, offline-installable XGEN connector for Excel/CSV: logs into an XGEN server directly (own auth, own agent-tool bridge, no xgen-connector dependency) and lets XGEN agents edit live-open Excel workbooks and CSV files, formulas included. Works even without Excel installed via a LibreOffice(UNO) backend."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -24,6 +24,8 @@ keywords = [
     "xlsx",
     "csv",
     "xlwings",
+    "libreoffice",
+    "uno",
     "spreadsheet",
     "office-automation",
     "offline",
@@ -67,6 +69,8 @@ dev = [
     "mypy>=1.11",
     # 테스트 전용: connector 브릿지 통합테스트에서 가짜 XGEN 서버(HTTP+WS)를 띄우는 데만 씀.
     "aiohttp>=3.10",
+    # 테스트 전용: libreoffice_adapter 테스트의 샘플 xlsx 생성/검증에만 씀.
+    "openpyxl>=3.1",
 ]
 # 폐쇄망용 단일 오프라인 설치파일을 만들 때만 필요(빌드머신 전용, 최종 설치는 무관).
 build = ["pyinstaller>=6.10"]
