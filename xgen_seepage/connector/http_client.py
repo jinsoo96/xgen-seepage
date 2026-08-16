@@ -6,7 +6,8 @@ auth-failure 훅)은 PlateerLab/xgen-connector `src/core/client.ts`(HttpClient)
 """
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable
+from contextlib import asynccontextmanager
+from typing import Any, AsyncIterator, Awaitable, Callable
 
 import httpx
 
@@ -104,6 +105,29 @@ class HttpClient:
 
     async def post(self, path: str, body: Any = None, **kw: Any) -> Any:
         return await self.json("POST", path, body, **kw)
+
+    @asynccontextmanager
+    async def stream(
+        self,
+        method: str,
+        path: str,
+        body: Any = None,
+        *,
+        timeout: float | None = None,
+    ) -> AsyncIterator[httpx.Response]:
+        """스트리밍 응답(SSE 등)용. `json()`과 달리 본문을 버퍼링하지 않는다 -
+        호출자가 `resp.aiter_raw()`/`aiter_bytes()`로 직접 소비한다. 401
+        처리는 body를 먼저 읽어야 판단할 수 있어 여기선 하지 않는다(스트림
+        시작 전에는 상태 코드만 보고, 그 판단은 호출자에게 맡긴다)."""
+        headers = self._headers({"Content-Type": "application/json", "Accept": "text/event-stream"})
+        async with self._client.stream(
+            method,
+            self._url(path),
+            headers=headers,
+            json=body if body is not None else None,
+            timeout=timeout or self._timeout,
+        ) as resp:
+            yield resp
 
     async def aclose(self) -> None:
         await self._client.aclose()

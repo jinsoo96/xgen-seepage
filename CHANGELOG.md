@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.0 (2026-08-17)
+
+**Excel 태스크팬 채팅 Phase 2/5: SSE 프록시.** `connector/agentflow_client.py`
+신규(하네스 워크플로우 CRUD + 실행 스트림)와 `taskpane_server.py`의
+`/chat/stream`(XGEN의 SSE를 원시 바이트로 그대로 릴레이)을 실제
+dev-xgen.x2bee.com으로 검증. 자세한 내용은 `ARCHITECTURE.md` §10.
+
+- **실제로 찾은 버그**: `_ChatStreamHandler`를 `__call__`을 가진 클래스
+  인스턴스로 라우트에 등록했더니 Starlette가 일반 요청 핸들러가 아니라
+  raw ASGI 앱으로 오인해서 즉시 500 (`takes 2 positional arguments but 4
+  were given`). 바운드 메서드(`chat_handler.handle`)로 등록하도록 수정.
+- **증명된 것**: 로컬 `/chat/stream`에 POST하면 실제 XGEN 서버까지 갔다가
+  SSE 응답이 바이트 단위로 그대로 돌아온다(왜곡 없음) - 프록시 계층 자체는
+  완전히 동작.
+- **증명 안 된 것**: 실제 에이전트 응답까지 오는 전체 실행은 지금
+  dev-xgen.x2bee.com에서 `ERROR401`(스트리밍 실행 중 예외 catch-all, 백엔드
+  소스로 확인)로 계속 실패한다. 원인이 서버 쪽 일시적 불안정인지 다른 문제인지
+  클라이언트에서는 구분 불가 - 다음 세션 최우선 확인 항목.
+- `HttpClient.stream()` 추가(기존 `json()`/`get()`/`post()`는 그대로).
+- 43개 테스트 통과, ruff/mypy 클린(기존 bridge.py 미해결 오류 2개 제외).
+
 ## 0.4.0 (2026-08-17)
 
 **Excel 태스크팬 채팅 기능 착수 (Phase 1/5: 로컬 HTTPS 서버 골격).** 채팅을

@@ -183,7 +183,13 @@ async def cmd_run(args: argparse.Namespace) -> int:
     if not args.no_taskpane:
         cert_path, key_path = certs.ensure_dev_certificate(cfgmod.config_dir())
         taskpane = TaskpaneServer(
-            port=cfg.taskpane_port, cert_path=cert_path, key_path=key_path
+            port=cfg.taskpane_port,
+            cert_path=cert_path,
+            key_path=key_path,
+            xgen_server_url=cfg.server_url,
+            allow_private_certificate=cfg.allow_private_certificate,
+            get_token=get_token,
+            get_chat_workflow_id=lambda: cfg.chat_workflow_id,
         )
         tasks.append(asyncio.create_task(taskpane.run()))
         print(f"태스크팬 로컬 서버: https://127.0.0.1:{taskpane.port}")
@@ -198,6 +204,8 @@ async def cmd_run(args: argparse.Namespace) -> int:
         if taskpane is not None:
             taskpane.stop()
         await asyncio.gather(*tasks, return_exceptions=True)
+        if taskpane is not None:
+            await taskpane.aclose()
         await http.aclose()
     return 0
 
