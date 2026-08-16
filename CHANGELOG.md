@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1 (2026-08-16)
+
+**실제로 얼려서(PyInstaller) 검증하다 찾은 진짜 버그 수정.** LibreOffice
+백엔드가 서브프로세스로 띄우는 `_uno_worker.py`는 import가 아니라 파일
+경로로만 참조돼서, PyInstaller가 얼린 exe 안에 그 파일을 넣지 않았다 -
+폐쇄망 배포용으로 만든 기능이 정작 폐쇄망 배포 산출물 안에서는 동작하지
+않는 상태였다. `packaging/xgen-seepage-connector.spec`에 그 파일을 `datas`로
+명시해 고쳤고, 고친 뒤 얼린 exe로 실제 LibreOffice를 열어 셀 쓰기→읽기→저장
+왕복까지 확인했다(`ARCHITECTURE.md` §7).
+
+README에서 내부 참고 레포/다른 사내 클라이언트 언급을 정리하고 도구 목록을
+현재 상태(24개)로 맞췄다.
+
 ## 0.3.0 (2026-08-14)
 
 **LibreOffice(UNO) 백엔드 추가. Microsoft Excel이 없는 환경(폐쇄망 등)에서도

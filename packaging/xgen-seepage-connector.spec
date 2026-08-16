@@ -7,6 +7,12 @@ hiddenimports = []
 tmp_ret = collect_all('keyring')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
+# libreoffice_adapter.py launches _uno_worker.py by file path
+# (Path(__file__).with_name(...)), never by import, so PyInstaller's static
+# analysis has no reason to bundle it - it must be listed explicitly or the
+# frozen exe silently can't find it at runtime.
+datas += [('../xgen_seepage/_uno_worker.py', 'xgen_seepage')]
+
 
 a = Analysis(
     ['run_connector.py'],

@@ -141,19 +141,16 @@ lo.save(doc)
 | `write_csv_table` | CSV 신규 생성/통째 덮어쓰기 |
 | `open_csv_in_excel` | CSV를 로컬 Excel로 열어 라이브 도구로 이어서 편집 |
 
-## 대안 경로. 이미 xgen-connector나 Claude Desktop을 쓰고 있다면
+## stdio MCP 서버로도 쓸 수 있다
 
-기본 경로는 위의 독립 `xgen-seepage run`이지만, 이미 다른 XGEN 클라이언트나
-Claude Desktop/Code를 쓰고 있어서 그쪽 Local MCP 설정에 그냥 얹고 싶다면
-stdio MCP 서버도 남겨뒀다:
+기본 경로는 위의 독립 `xgen-seepage run`이지만, 이미 Local MCP 설정이 있는
+클라이언트에 그냥 얹고 싶다면 stdio MCP 서버도 남겨뒀다:
 
 ```bash
 xgen-seepage-mcp
 # 또는
 python -m xgen_seepage.mcp_server
 ```
-
-절차는 [examples/xgen_connector_local_mcp.md](examples/xgen_connector_local_mcp.md).
 
 ## 개발
 

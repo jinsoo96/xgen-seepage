@@ -224,6 +224,19 @@ python -m PyInstaller --onefile --name xgen-seepage-connector `
 안 생겨야 한다. 그 "정상 경로"는 실제 Windows 데스크톱 세션에서 별도 검증이
 필요하다**. 이 저장소를 만든 환경 자체가 비대화형이라 직접 확인 못 했다.
 
+**실제로 찾은 버그. 얼린 exe에 `_uno_worker.py`가 안 들어가 있었다**:
+LibreOffice 백엔드(§9)를 붙인 뒤 실제로 얼려서 검증하기 전까지는 몰랐던
+문제다. `libreoffice_adapter.py`는 `_uno_worker.py`를 import가 아니라
+`Path(__file__).with_name(...)`으로 파일 경로째 찾아 서브프로세스로 띄우는데,
+PyInstaller의 정적 분석은 실제로 import되는 모듈만 번들에 넣는다 - 파일
+경로로만 참조되는 `.py`는 존재 자체를 모른다. 실제로 얼려서 확인해보니
+그 경로가 번들 안에 없어 `worker exists = False`였다. `packaging/
+xgen-seepage-connector.spec`의 `datas`에 그 파일을 명시적으로 추가해
+고쳤고, 고친 뒤 얼린 exe로 진짜 LibreOffice를 열어 셀 쓰기→읽기→저장까지
+왕복해 디스크에 반영된 것까지 확인했다. **폐쇄망 배포를 위해 만든 기능이
+정작 폐쇄망 배포 산출물(얼린 exe) 안에서는 동작하지 않았던 것**이라 이
+검증이 없었으면 실사용 시점에야 발견됐을 문제다.
+
 **NSIS 설치파일로 감싸는 것(전형적인 "설치 프로그램" UX)은 아직 안 했다.**
 PyInstaller onefile exe는 "실행하면 도는 단일 파일"이지 클릭 설치·시작프로그램
 등록·제거 항목 같은 설치 마법사 경험은 없다. `xgen-connector`가 이미 쓰는
