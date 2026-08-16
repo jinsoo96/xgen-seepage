@@ -19,10 +19,11 @@ import os
 import sys
 import uuid
 
-from . import config as cfgmod
+from . import certs, config as cfgmod
 from .auth import AuthApi
 from .bridge import ConnectorMcpBridge
 from .http_client import ApiError, HttpClient
+from .taskpane_server import TaskpaneServer
 
 log = logging.getLogger("xgen-seepage")
 
@@ -148,7 +149,7 @@ async def _ensure_valid_token(cfg: cfgmod.SeepageConfig, auth: AuthApi) -> str |
     return None
 
 
-async def cmd_run(_args: argparse.Namespace) -> int:
+async def cmd_run(args: argparse.Namespace) -> int:
     cfg = cfgmod.load_config()
     if not cfg.server_url:
         print("설정된 서버가 없습니다. `xgen-seepage login`을 먼저 실행하세요.", file=sys.stderr)
@@ -177,13 +178,26 @@ async def cmd_run(_args: argparse.Namespace) -> int:
         await http.aclose()
         return 1
 
+    tasks = [asyncio.create_task(bridge.run(cfg.server_url, user_id))]
+    taskpane: TaskpaneServer | None = None
+    if not args.no_taskpane:
+        cert_path, key_path = certs.ensure_dev_certificate(cfgmod.config_dir())
+        taskpane = TaskpaneServer(
+            port=cfg.taskpane_port, cert_path=cert_path, key_path=key_path
+        )
+        tasks.append(asyncio.create_task(taskpane.run()))
+        print(f"태스크팬 로컬 서버: https://127.0.0.1:{taskpane.port}")
+
     print(f"{cfg.server_url} 에 연결합니다 (사용자 {cfg.username or user_id}). Ctrl+C로 종료.")
     try:
-        await bridge.run(cfg.server_url, user_id)
+        await asyncio.gather(*tasks)
     except KeyboardInterrupt:
         pass
     finally:
         bridge.stop()
+        if taskpane is not None:
+            taskpane.stop()
+        await asyncio.gather(*tasks, return_exceptions=True)
         await http.aclose()
     return 0
 
@@ -211,6 +225,12 @@ def build_parser() -> argparse.ArgumentParser:
     status_p.set_defaults(func=cmd_status)
 
     run_p = sub.add_parser("run", help="에이전트 도구 브릿지를 시작한다(포그라운드, 상주)")
+    run_p.add_argument(
+        "--no-taskpane",
+        action="store_true",
+        default=False,
+        help="Excel 태스크팬용 로컬 HTTPS 서버를 띄우지 않는다(기본: 띄움)",
+    )
     run_p.set_defaults(func=cmd_run)
 
     return p

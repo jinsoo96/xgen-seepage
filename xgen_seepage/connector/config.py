@@ -25,12 +25,18 @@ _KEY_ACCESS = "access_token"
 _KEY_REFRESH = "refresh_token"
 
 
-def _config_dir() -> Path:
+def config_dir() -> Path:
     return Path.home() / ".xgen-seepage"
 
 
 def _config_path() -> Path:
-    return _config_dir() / "config.json"
+    return config_dir() / "config.json"
+
+
+# 태스크팬 로컬 서버 기본 포트. manifest.xml의 SourceLocation에 고정 값으로
+# 박아 넣으므로(Phase 4) 런마다 바뀌면 안 된다 - 바꾸려면 매니페스트
+# 재배포가 필요한 breaking change로 취급한다.
+DEFAULT_TASKPANE_PORT = 51837
 
 
 @dataclass
@@ -39,6 +45,12 @@ class SeepageConfig:
     user_id: str = ""
     username: str = ""
     allow_private_certificate: bool = False
+    # Excel 태스크팬 채팅이 매 메시지마다 실행하는 저장된 agentflow 워크플로우.
+    # 비어 있으면 첫 `run` 시 자동 생성한다(connector/agentflow_client.py).
+    chat_workflow_id: str = ""
+    chat_provider: str = ""
+    chat_model: str = ""
+    taskpane_port: int = DEFAULT_TASKPANE_PORT
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -57,11 +69,15 @@ def load_config() -> SeepageConfig:
         user_id=data.get("user_id", ""),
         username=data.get("username", ""),
         allow_private_certificate=bool(data.get("allow_private_certificate", False)),
+        chat_workflow_id=data.get("chat_workflow_id", ""),
+        chat_provider=data.get("chat_provider", ""),
+        chat_model=data.get("chat_model", ""),
+        taskpane_port=int(data.get("taskpane_port") or DEFAULT_TASKPANE_PORT),
     )
 
 
 def save_config(config: SeepageConfig) -> None:
-    _config_dir().mkdir(parents=True, exist_ok=True)
+    config_dir().mkdir(parents=True, exist_ok=True)
     _config_path().write_text(
         json.dumps(config.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8"
     )

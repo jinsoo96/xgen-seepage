@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xgen-seepage"
-version = "0.3.1"
+version = "0.4.0"
 description = "Standalone, offline-installable XGEN connector for Excel/CSV: logs into an XGEN server directly (own auth, own agent-tool bridge, no xgen-connector dependency) and lets XGEN agents edit live-open Excel workbooks and CSV files, formulas included. Works even without Excel installed via a LibreOffice(UNO) backend."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -56,6 +56,13 @@ dependencies = [
     "httpx>=0.27",
     "websockets>=13",
     "keyring>=24",
+    # connector/taskpane_server.py: Excel 태스크팬용 로컬 HTTPS 서버.
+    # 이미 mcp의 전이 의존성으로 .venv에 들어와 있던 걸 확인하고 직접
+    # 의존성으로 승격(버전 고정 안정성을 위해 - 전이 의존성으로만 두면
+    # mcp가 나중에 이걸 안 끌어오도록 바뀌었을 때 조용히 깨진다).
+    "starlette>=0.37",
+    "uvicorn>=0.30",
+    "cryptography>=42",
 ]
 
 [project.optional-dependencies]

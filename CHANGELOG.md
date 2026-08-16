@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 (2026-08-17)
+
+**Excel 태스크팬 채팅 기능 착수 (Phase 1/5: 로컬 HTTPS 서버 골격).** 채팅을
+XGEN 웹 UI가 아니라 Excel 안에 도킹된 실제 패널에서 하고 싶다는 요청에 따라,
+Office.js 태스크팬 애드인 경로를 다시 꺼냈다(§1-§2에서 설치 마찰 때문에
+일부러 뺐던 경로). 자세한 아키텍처/진행 상황은 `ARCHITECTURE.md` §10.
+
+- `connector/certs.py` 신규: 자체서명 인증서를 `cryptography`로 순수
+  파이썬 생성(새 pip 설치 없음 - `mcp`의 전이 의존성으로 이미 있던 걸
+  직접 의존성으로 승격), Windows `certutil -user -addstore Root`로 신뢰
+  등록 시도. **실측으로 찾은 것**: 이 비대화형 세션에서는 Root 저장소
+  추가만 `ERROR_NOT_SUPPORTED`로 실패한다(CA/My 저장소는 같은 세션에서
+  성공 - 파일 포맷 문제 아님을 확인). OS 키체인과 같은 부류의 "대화형
+  로그온 세션 필요" 제약으로 보이며, 정상 데스크톱 세션에서의 동작은
+  별도 검증 필요.
+- `connector/taskpane_server.py` 신규: Starlette+uvicorn 로컬 HTTPS 서버.
+  `cmd_run`이 기존 WS 브릿지와 `asyncio.gather`로 나란히 띄운다(`--no-taskpane`
+  로 끌 수 있음).
+- 실제 dev-xgen.x2bee.com에 로그인한 채로 브릿지(`catalog_synced=True,
+  server_tool_count=24`)와 로컬 `/health`가 동시에 정상 동작하는 것을
+  확인. 43개 테스트 통과, ruff/mypy 클린.
+
 ## 0.3.1 (2026-08-16)
 
 **실제로 얼려서(PyInstaller) 검증하다 찾은 진짜 버그 수정.** LibreOffice
