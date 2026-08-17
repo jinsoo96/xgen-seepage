@@ -1,7 +1,8 @@
-/* xgen-seepage 태스크팬 채팅. 셀은 직접 안 만진다 - 그건 이미 도는
-   connector 프로세스의 WS 브릿지(tools.call_tool -> live_adapter/
-   libreoffice_adapter)가 한다. 이 스크립트는 /chat/stream을 호출해서
-   XGEN이 실제로 보내는 SSE를 그대로 파싱해 보여주는 채팅창일 뿐이다. */
+/* xgen-seepage 채팅 패널. office.js에 의존하지 않는다 - 이 페이지는 Office
+   JavaScript API를 하나도 쓰지 않는다(셀 편집은 커넥터의 WS 브릿지가 하지
+   이 페이지가 하는 게 아니다). 그래서 Office 호스트를 기다릴 이유가 없고,
+   XGEN 연결(로컬 커넥터의 /workflows·/chat/stream)에만 의존한다. 순수
+   DOM 로드 시점에 바로 뜬다. */
 
 const statusEl = document.getElementById("status");
 const messagesEl = document.getElementById("messages");
@@ -61,19 +62,27 @@ async function loadAgents() {
   }
 }
 
-Office.onReady((info) => {
-  if (info.host === Office.HostType.Excel) {
-    setStatus(`준비됨 (Excel, ${Office.context.diagnostics.version})`, "ready");
-  } else {
-    setStatus(`준비됨 (host=${info.host})`, "ready");
-  }
+/** XGEN 커넥터(로컬 서버)에 붙어 있는지 확인하고 준비 상태로 만든다.
+ * office.js가 아니라 이 연결이 이 패널의 유일한 의존성이다. */
+async function init() {
   input.disabled = false;
   sendBtn.disabled = false;
   input.focus();
+  try {
+    const resp = await fetch("/health");
+    if (resp.ok) {
+      setStatus("XGEN 연결됨", "ready");
+    } else {
+      setStatus(`커넥터 응답 이상: ${resp.status}`, "error");
+    }
+  } catch (e) {
+    setStatus(`커넥터에 연결할 수 없습니다. \`xgen-seepage run\`이 켜져 있는지 확인하세요.`, "error");
+  }
   loadAgents();
-});
+}
 
 reloadBtn.addEventListener("click", loadAgents);
+window.addEventListener("DOMContentLoaded", init);
 
 /** SSE 원시 텍스트 프레임을 파싱한다. `event:`/`data:` 줄 + 빈 줄로 프레임
  * 구분(표준 SSE). XGEN이 보내는 실제 이벤트 이름(log/node_status/tool/

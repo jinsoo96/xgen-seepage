@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.10.0 (2026-08-17)
+
+**채팅 패널에서 office.js 의존 완전 제거 - 순수 XGEN 의존 웹 UI로.**
+사용자 지적: "Office 비의존이 아니라 XGEN 의존으로 가야 한다", 그리고
+패널이 "Office.js 로딩중"에서 멈추는 문제. 맞는 지적이었다 - 이 패널은
+Office JavaScript API를 하나도 안 쓰는데(셀 편집은 브릿지가 함) office.js를
+넣어둔 게 불필요했고 오히려 `Office.onReady()`가 UI를 멈추게 하고 있었다.
+
+- office.js `<script>`와 `Office.onReady()` 게이팅을 전부 제거. 이제 DOM
+  로드 시 `/health`로 커넥터 연결만 확인하고 바로 뜬다. 0.9.0에서 벤더링했던
+  `taskpane/vendor/office.js`도 삭제.
+- Playwright 실측: 상태가 "XGEN 연결됨"으로 바로 뜨고, 페이지 로드 시
+  외부(Microsoft 포함) 요청 0건, 에이전트 드롭다운·채팅 전송 정상.
+- 이제 패널까지 포함해 전체 경로가 인터넷·office.js·Microsoft 애드인
+  인프라 어디에도 의존하지 않는다. XGEN 커넥터에만 붙어 있으면 동작.
+
 ## 0.9.0 (2026-08-17)
 
 **태스크팬에 에이전트 선택 토글 + office.js 로컬 벤더링(폐쇄망 대응).**
