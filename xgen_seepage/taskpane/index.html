@@ -2,9 +2,18 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8">
-  <title>xgen-seepage taskpane</title>
+  <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+  <title>xgen-seepage</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <link rel="stylesheet" href="taskpane.css">
 </head>
 <body>
-  <p>Phase 1 골격 - 실제 채팅 UI/manifest.xml은 Phase 4(Excel 머신 확보 후)에서 채운다.</p>
+  <div id="status" class="status">Office.js 로딩 중...</div>
+  <div id="messages" class="messages"></div>
+  <form id="composer" class="composer">
+    <input id="input" type="text" placeholder="에이전트에게 메시지..." autocomplete="off" disabled />
+    <button id="send" type="submit" disabled>전송</button>
+  </form>
+  <script src="taskpane.js"></script>
 </body>
 </html>

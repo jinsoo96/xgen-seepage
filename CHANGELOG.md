@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.8.0 (2026-08-17)
+
+**Excel 태스크팬 UI 실제 구현 + Playwright로 실기 검증 (Phase 4 대부분).**
+`taskpane/`에 manifest.xml, index.html, taskpane.js(SSE 파싱 채팅), taskpane.css,
+아이콘을 추가했다. 자세한 내용은 `ARCHITECTURE.md` §11 후반부.
+
+- **Playwright로 실제 브라우저에서 검증**: Office.js 로드 → `Office.onReady()`
+  콜백 → 채팅 입력·전송 → 로컬 `/chat/stream` → 실제 dev-xgen.x2bee.com SSE
+  스트리밍까지 전부 실제로 동작 확인.
+- **남은 미검증**: 매니페스트가 실제 Excel 리본 버튼으로 뜨는 것. 검증에 쓴
+  머신 Office가 ProPlus2021 볼륨 라이선스(16.0.14334)라 개발자 레지스트리
+  사이드로드를 안 읽고, 공유 폴더 카탈로그용 애드인 삽입 대화상자도 콘텐츠를
+  못 그려 막혔다. xgen-seepage 코드 문제가 아니라 그 데스크톱 Office
+  클라이언트의 환경 이슈로 규명됨(§11).
+
 ## 0.7.0 (2026-08-17)
 
 **`live_adapter`(xlwings/COM)를 실제 Microsoft Excel로 처음 끝까지
