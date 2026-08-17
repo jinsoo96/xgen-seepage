@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.6.1 (2026-08-17)
+
+**심각한 패키징 버그 수정 - 얼린 exe가 자기 자신을 실행조차 못 했다.**
+태스크팬 기능을 실제로 얼려서 처음 검증하며 `xgen-seepage-connector.exe
+--help`를 직접 돌려보니 `ModuleNotFoundError: No module named
+'xgen_seepage.connector'`로 즉시 죽었다. 원인은 스펙 파일의 `pathex=[]` -
+`packaging/`에서 빌드하면 프로젝트 루트(`xgen_seepage/`가 있는 곳)가 빌드
+시점 파이썬의 `sys.path`에 없어서 생기는 문제였다. `_uno_worker.py`
+버그처럼 빌드는 항상 성공하고 실행하면 그 자리에서 죽는 부류라 빌드
+로그만으로는 못 잡는다. `SPECPATH` 기준 절대경로로 고정해 빌드 실행
+위치와 무관하게 만들었다. 지금까지의 얼린-exe 검증은 전부 자체 pathex를
+따로 지정한 별도 probe exe로 했지 실제 exe의 CLI를 직접 돌려본 적이
+없어서 이 문제를 여태 못 잡았다는 것도 정직하게 기록해둔다.
+
+고친 뒤 실제로 얼려서 `--help`/`status`/`login`(HTTP는 성공, OS 키체인
+저장은 기존에 알려진 비대화형 세션 제약으로만 실패)과, 별도 probe로 얼린
+프로세스 안에서 `TaskpaneServer`를 띄워 `/health`/정적 파일 서빙/
+`/chat/stream`(실제 dev-xgen.x2bee.com에서 SSE 실시간 수신)까지 전부
+확인했다. 우려했던 uvicorn 런타임 디스패치 문제는 `collect_all` +
+명시적 hidden-imports로 미리 막아둔 덕에 재현되지 않았다. 자세한 내용은
+`ARCHITECTURE.md` §7.
+
 ## 0.6.0 (2026-08-17)
 
 **설계 정정: "워크플로우 자동생성"이 아니라 "연결"이다.** 0.5.0에서 계획한
