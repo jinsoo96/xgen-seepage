@@ -8,6 +8,8 @@ const messagesEl = document.getElementById("messages");
 const form = document.getElementById("composer");
 const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
+const agentSel = document.getElementById("agent");
+const reloadBtn = document.getElementById("reload");
 
 function setStatus(text, cls) {
   statusEl.textContent = text;
@@ -23,6 +25,42 @@ function addMessage(text, cls) {
   return div;
 }
 
+/** 로그인된 XGEN 계정이 가진 워크플로우(에이전트)를 드롭다운에 채운다.
+ * 이걸로 CLI에서 미리 하나 박아둘 필요 없이 패널 안에서 바로 골라 쓴다. */
+async function loadAgents() {
+  agentSel.disabled = true;
+  reloadBtn.disabled = true;
+  agentSel.innerHTML = '<option value="">불러오는 중...</option>';
+  try {
+    const resp = await fetch("/workflows");
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}));
+      agentSel.innerHTML = '<option value="">(목록 불러오기 실패)</option>';
+      setStatus(`에이전트 목록 실패: ${body.message || resp.status}`, "error");
+      return;
+    }
+    const data = await resp.json();
+    const list = data.workflows || [];
+    if (!list.length) {
+      agentSel.innerHTML = '<option value="">(에이전트 없음 - XGEN 캔버스에서 먼저 만드세요)</option>';
+      return;
+    }
+    agentSel.innerHTML = "";
+    for (const w of list) {
+      const opt = document.createElement("option");
+      opt.value = w.workflow_id;
+      opt.textContent = w.workflow_name || w.workflow_id;
+      if (w.workflow_id === data.current) opt.selected = true;
+      agentSel.appendChild(opt);
+    }
+    agentSel.disabled = false;
+    reloadBtn.disabled = false;
+  } catch (e) {
+    agentSel.innerHTML = '<option value="">(연결 실패)</option>';
+    setStatus(`에이전트 목록 연결 실패: ${e.message}`, "error");
+  }
+}
+
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
     setStatus(`준비됨 (Excel, ${Office.context.diagnostics.version})`, "ready");
@@ -32,7 +70,10 @@ Office.onReady((info) => {
   input.disabled = false;
   sendBtn.disabled = false;
   input.focus();
+  loadAgents();
 });
+
+reloadBtn.addEventListener("click", loadAgents);
 
 /** SSE 원시 텍스트 프레임을 파싱한다. `event:`/`data:` 줄 + 빈 줄로 프레임
  * 구분(표준 SSE). XGEN이 보내는 실제 이벤트 이름(log/node_status/tool/
@@ -94,6 +135,11 @@ function handleEvent(eventName, data, assistantDiv) {
 }
 
 async function sendMessage(message) {
+  const workflowId = agentSel.value;
+  if (!workflowId) {
+    addMessage("[안내] 먼저 위에서 에이전트를 선택하세요.", "error");
+    return;
+  }
   addMessage(message, "user");
   input.value = "";
   input.disabled = true;
@@ -103,7 +149,7 @@ async function sendMessage(message) {
     const resp = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, workflow_id: workflowId }),
     });
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({}));

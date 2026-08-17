@@ -4,11 +4,22 @@
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=Edge">
   <title>xgen-seepage</title>
-  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <!-- office.js는 로컬 서버에서 서빙한다(Microsoft CDN 아님) - 폐쇄망에서
+       페이지 로드가 인터넷에 의존하지 않게 하기 위함. 커넥터 핵심(로그인→
+       브릿지→셀 편집)은 애초에 인터넷 0 의존이고, 이 태스크팬 UI만 office.js가
+       필요했는데 그 하나 남은 CDN 의존을 없앤 것. (주의: office.js가 런타임에
+       추가 리소스를 CDN에서 더 당기는 경우가 있어, 완전 에어갭 동작은 실제
+       폐쇄망 Excel에서 별도 확인 필요 - ARCHITECTURE.md §11.) -->
+  <script src="vendor/office.js"></script>
   <link rel="stylesheet" href="taskpane.css">
 </head>
 <body>
   <div id="status" class="status">Office.js 로딩 중...</div>
+  <div class="agentbar">
+    <label for="agent">에이전트</label>
+    <select id="agent" disabled><option value="">불러오는 중...</option></select>
+    <button id="reload" type="button" title="목록 새로고침" disabled>↻</button>
+  </div>
   <div id="messages" class="messages"></div>
   <form id="composer" class="composer">
     <input id="input" type="text" placeholder="에이전트에게 메시지..." autocomplete="off" disabled />

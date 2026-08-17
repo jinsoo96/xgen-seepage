@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0 (2026-08-17)
+
+**태스크팬에 에이전트 선택 토글 + office.js 로컬 벤더링(폐쇄망 대응).**
+사용자 요청: XGEN 로그인만 돼 있으면 패널에서 에이전트를 골라 쓸 수 있게,
+그리고 인터넷 의존 없이 동작하게. 자세한 내용은 `ARCHITECTURE.md` §11.
+
+- 서버에 `GET /workflows`(로그인 계정의 워크플로우 목록) 추가, `/chat/stream`이
+  요청 바디의 `workflow_id`를 받아 패널에서 고른 에이전트로 실행. CLI로
+  워크플로우를 미리 박아둘 필요 없음(`get_chat_workflow_id`도 이제 선택).
+- 태스크팬 UI에 에이전트 드롭다운 추가. Playwright로 실측: 실제 계정의
+  워크플로우 2개를 불러오고, 선택한 에이전트로 실제 SSE 스트리밍 확인.
+- `office.js`를 Microsoft CDN이 아니라 로컬 서버에서 서빙(`taskpane/vendor/
+  office.js`). Playwright 네트워크 로그로 페이지 로드 시 microsoft.com 호출
+  0건 확인. 단, 완전 에어갭 동작은 실제 폐쇄망 Excel에서 별도 확인 필요.
+- **핵심**: 에이전트의 Excel 셀 편집 본체(로그인→브릿지→어댑터)는 office.js도
+  인터넷도 필요 없이 이미 동작. office.js는 태스크팬 채팅 UI에만 쓰인다.
+
 ## 0.8.0 (2026-08-17)
 
 **Excel 태스크팬 UI 실제 구현 + Playwright로 실기 검증 (Phase 4 대부분).**

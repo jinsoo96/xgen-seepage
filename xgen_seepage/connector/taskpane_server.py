@@ -44,10 +44,14 @@ async def _health(_request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "service": "xgen-seepage-taskpane"})
 
 
-class _ChatStreamHandler:
-    """`/chat/stream` 라우트 본체. 클로저 대신 클래스로 둔 이유는 `TaskpaneServer`가
-    가진 `get_token`/`agentflow`/`chat_workflow_id`를 매 요청마다 다시 읽어야
-    해서다(토큰은 만료·갱신될 수 있고, config는 나중에 재로그인으로 바뀔 수 있다)."""
+class _ChatApiHandler:
+    """`/workflows`(에이전트 목록)와 `/chat/stream`(선택한 에이전트 실행)
+    라우트 본체. 클로저 대신 클래스로 둔 이유는 `TaskpaneServer`가 가진
+    `get_token`/`agentflow`/`chat_workflow_id`를 매 요청마다 다시 읽어야
+    해서다(토큰은 만료·갱신될 수 있고, config는 나중에 재로그인으로 바뀔 수
+    있다). 바운드 메서드로 라우트에 등록해야 한다 - Starlette의 `Route`는
+    `inspect.isfunction`/`ismethod`로 감지된 것만 `(request) -> Response`로
+    취급하고, `__call__` 인스턴스는 raw ASGI 앱으로 오인한다(실측 버그)."""
 
     def __init__(
         self,
@@ -60,25 +64,39 @@ class _ChatStreamHandler:
         self._agentflow = agentflow
         self._get_chat_workflow_id = get_chat_workflow_id
 
-    async def handle(self, request: Request):
-        """일반 함수가 아니라 바운드 메서드로 등록해야 한다 - Starlette의
-        `Route`는 `inspect.isfunction`/`ismethod`로 감지된 것만 `(request) ->
-        Response` 시그니처로 취급해서 감싼다. 임의의 콜러블 인스턴스(예:
-        이 클래스에 `__call__`을 뒀다면)는 raw ASGI 앱(`scope, receive,
-        send`)으로 오인해서 호출한다(실측으로 확인한 진짜 버그: `__call__`로
-        뒀더니 `takes 2 positional arguments but 4 were given`)."""
-        workflow_id = self._get_chat_workflow_id()
-        if not workflow_id:
-            return JSONResponse(
-                {
-                    "error": "no_chat_workflow",
-                    "message": "채팅을 연결할 워크플로우가 아직 없습니다. "
-                    "`xgen-seepage chat-workflow list`로 후보를 보고 "
-                    "`xgen-seepage chat-workflow set <id>`로 연결하세요.",
-                },
-                status_code=503,
-            )
+    async def _authed(self) -> str | None:
         token = await self._get_token()
+        if token is not None:
+            self._agentflow.set_token(token)
+        return token
+
+    async def list_workflows(self, _request: Request):
+        """태스크팬 드롭다운이 채우는 에이전트(워크플로우) 목록. XGEN에
+        로그인만 돼 있으면 그 계정이 가진 워크플로우 중 하나를 골라 바로
+        붙일 수 있게 한다 - CLI로 미리 하나 박아둘 필요 없이 패널 안에서
+        토글로 선택. 현재 config에 설정된 기본값도 함께 알려준다."""
+        token = await self._authed()
+        if token is None:
+            return JSONResponse(
+                {"error": "not_logged_in", "message": "`xgen-seepage login`이 필요합니다."},
+                status_code=401,
+            )
+        try:
+            workflows = await self._agentflow.list_workflows()
+        except ApiError as e:
+            return JSONResponse({"error": "xgen_error", "detail": e.body}, status_code=e.status)
+        return JSONResponse(
+            {
+                "workflows": [
+                    {"workflow_id": w.workflow_id, "workflow_name": w.workflow_name}
+                    for w in workflows
+                ],
+                "current": self._get_chat_workflow_id(),
+            }
+        )
+
+    async def chat_stream(self, request: Request):
+        token = await self._authed()
         if token is None:
             return JSONResponse(
                 {"error": "not_logged_in", "message": "`xgen-seepage login`이 필요합니다."},
@@ -91,9 +109,19 @@ class _ChatStreamHandler:
         message = body.get("message")
         if not message:
             return JSONResponse({"error": "bad_request", "message": "'message' 필드가 필요합니다."}, status_code=400)
+        # 패널에서 고른 에이전트를 우선 쓰고, 안 넘어오면 config 기본값으로 폴백.
+        workflow_id = body.get("workflow_id") or self._get_chat_workflow_id()
+        if not workflow_id:
+            return JSONResponse(
+                {
+                    "error": "no_chat_workflow",
+                    "message": "채팅할 에이전트를 선택하세요(위 드롭다운). "
+                    "목록이 비어 있으면 XGEN 캔버스에서 워크플로우를 먼저 만드세요.",
+                },
+                status_code=503,
+            )
         interaction_id = body.get("interaction_id") or "default"
 
-        self._agentflow.set_token(token)
         gen = self._agentflow.execute_stream(
             workflow_id=workflow_id,
             workflow_name=workflow_id,
@@ -122,12 +150,13 @@ class _ChatStreamHandler:
         return StreamingResponse(_combined(), media_type="text/event-stream")
 
 
-def _build_app(chat_handler: _ChatStreamHandler | None) -> Starlette:
+def _build_app(chat_handler: _ChatApiHandler | None) -> Starlette:
     routes: list[BaseRoute] = [
         Route("/health", _health),
     ]
     if chat_handler is not None:
-        routes.append(Route("/chat/stream", chat_handler.handle, methods=["POST"]))
+        routes.append(Route("/workflows", chat_handler.list_workflows, methods=["GET"]))
+        routes.append(Route("/chat/stream", chat_handler.chat_stream, methods=["POST"]))
     if _TASKPANE_DIR.is_dir():
         routes.append(Mount("/", app=StaticFiles(directory=str(_TASKPANE_DIR), html=True)))
     else:
@@ -153,12 +182,15 @@ class TaskpaneServer:
     ) -> None:
         chat_handler = None
         self._chat_http: HttpClient | None = None
-        if xgen_server_url and get_token is not None and get_chat_workflow_id is not None:
+        # get_chat_workflow_id는 이제 선택. 안 넘겨도 패널에서 에이전트를
+        # 고를 수 있으니 빈 기본값으로 둔다(로그인 토큰과 서버 URL만 있으면
+        # /workflows·/chat/stream을 붙인다).
+        if xgen_server_url and get_token is not None:
             self._chat_http = HttpClient(xgen_server_url, allow_private_certificate=allow_private_certificate)
-            chat_handler = _ChatStreamHandler(
+            chat_handler = _ChatApiHandler(
                 get_token=get_token,
                 agentflow=AgentflowApi(self._chat_http),
-                get_chat_workflow_id=get_chat_workflow_id,
+                get_chat_workflow_id=get_chat_workflow_id or (lambda: ""),
             )
 
         app = _build_app(chat_handler)

@@ -14,6 +14,28 @@ body {
 }
 .status.ready { background: #e6f7e6; }
 .status.error { background: #fdecea; color: #a33; }
+.agentbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #eee;
+}
+.agentbar label { color: #666; white-space: nowrap; }
+#agent {
+  flex: 1;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+#reload {
+  padding: 4px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+#agent:disabled, #reload:disabled { opacity: 0.5; cursor: default; }
 .messages {
   flex: 1;
   overflow-y: auto;
