@@ -1,18 +1,28 @@
-"""XGEN agentflow API - 태스크팬 채팅이 매 메시지마다 실행하는 저장된
-워크플로우를 만들고 돌리는 데 쓴다.
+"""XGEN agentflow API - Excel 태스크팬 채팅이 쓴다.
 
-**하네스 전용 CRUD를 쓴다, 레거시 `/api/agentflow/save`가 아니다**: 실측
-(2026-08-17)으로 확인한 실제 이유가 있다. `agents/harness` 노드가 든
-워크플로우를 레거시 `/api/agentflow/save`로 저장하면 `{"success": true}`가
-돌아오지만, 그 직후 `/api/agentflow/load/{id}`·`/api/agentflow/list`·
-`/api/agentflow/harness/workflows` 어디로도 안 보였다(즉 어디 갔는지 알 수
-없는 상태가 됨). 백엔드 소스(`xgen-workflow controller/workflow/endpoints/
-harness.py:1183-1191`)의 주석이 정확히 이 부류의 문제를 설명한다: 레거시
-저장 경로는 `(user_id, workflow_id, workflow_name)` 3컬럼 존재 확인이라
-같은 workflow_id에 이름만 갈리면 insert 분기로 새 줄이 쌓이는 버그가 있고,
-레거시 delete는 `LIMIT 1`이라 중복 줄을 온전히 못 지운다. 그래서 하네스
-워크플로우 전용으로 새로 만든 `/api/agentflow/harness/workflows` CRUD가
-"duplicate-proof"로 명시돼 있다 - 이쪽만 쓴다.
+**설계를 바로잡음(2026-08-17, 사용자 정정)**: 처음엔 "채팅용 워크플로우가
+없으면 xgen-seepage가 하나 자동 생성한다"는 방향으로 만들고 있었다. 틀린
+방향이었다 - xgen-connector가 하는 것처럼 **연결**이어야 한다. 사용자가
+XGEN에 이미 갖고 있는 워크플로우(캔버스로 직접 만든 것, `agents/harness`
+노드가 든 것) 중 아무거나 하나에 태스크팬을 연결하는 것이지, xgen-seepage가
+전용 워크플로우를 서버에 몰래 만들어서 소유하는 게 아니다. 그래서 이
+모듈은 조회/실행만 하고, "이 워크플로우가 없으면 만든다" 같은 로직이
+없다. 사용자가 `xgen-seepage chat-workflow list`/`set`으로 직접 고른다.
+
+이 방향이 실측으로도 맞았다: 새로 만든 워크플로우는(하네스 전용 API로
+만들든 레거시로 만들든) 만든 직후 조회/삭제 어디서도 안 보이는 실제
+플랫폼 버그를 발견했다(아래 `list_workflows` 문서 참조) - 반면 사용자가
+이미 갖고 있는 실제 워크플로우(`shinhan_blue_agent_v1`)에 연결해서 돌리니
+그 문제를 완전히 비켜가고 실행이 끝까지 정상적으로 흘렀다(vLLM 모델
+미기동이라는, 이미 §8에서 알려진 별개의 이슈만 남았다).
+
+`save_harness_workflow`/`load_harness_workflow`는 "레거시 `/api/agentflow/
+save`가 아니라 하네스 전용 CRUD를 쓴다"는 이유로 남겨뒀다 - 레거시 저장
+경로는 `(user_id, workflow_id, workflow_name)` 3컬럼 존재 확인이라 같은
+workflow_id에 이름만 갈리면 insert 분기로 중복 줄이 쌓이는 버그가 있고
+(백엔드 소스 `xgen-workflow controller/workflow/endpoints/harness.py:
+1183-1191`의 주석이 이 문제를 정확히 설명한다), 레거시 delete는
+`LIMIT 1`이라 그 중복을 온전히 못 지운다.
 """
 from __future__ import annotations
 
@@ -34,12 +44,36 @@ class HarnessWorkflow:
     raw: dict[str, Any]
 
 
+@dataclass
+class WorkflowSummary:
+    workflow_id: str
+    workflow_name: str
+
+
 class AgentflowApi:
     def __init__(self, http: HttpClient) -> None:
         self._http = http
 
     def set_token(self, token: str | None) -> None:
         self._http.set_token(token)
+
+    async def list_workflows(self) -> list[WorkflowSummary]:
+        """사용자가 태스크팬 채팅을 연결할 수 있는 워크플로우 후보 목록.
+        `GET /api/agentflow/list`(일반 저장 워크플로우) 기준이다 - 실측으로
+        확인한 실제 이유: `/api/agentflow/harness/workflows`로 방금 막
+        만든 워크플로우는 같은 계정에서 곧바로 조회해도 안 보이는 문제가
+        재현됐지만(원인: 서버 쪽, xgen-seepage 밖의 문제), 이미 캔버스로
+        만들어 쓰고 있던 실제 워크플로우는 이 일반 목록에 정상적으로
+        보이고 실행도 끝까지 됐다. 그래서 "새로 만들기"가 아니라 "이미
+        있는 것 중 고르기"가 기본 경로다."""
+        res = await self._http.get("/api/agentflow/list")
+        raw_list = res.get("workflows", []) if isinstance(res, dict) else res
+        return [
+            WorkflowSummary(
+                workflow_id=w.get("workflow_id", ""), workflow_name=w.get("workflow_name", "")
+            )
+            for w in raw_list
+        ]
 
     async def load_harness_workflow(self, workflow_id: str) -> HarnessWorkflow | None:
         """존재하면 반환, 없으면(404) None. 그 외 에러는 그대로 올린다."""

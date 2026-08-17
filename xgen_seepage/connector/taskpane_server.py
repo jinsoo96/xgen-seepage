@@ -70,7 +70,12 @@ class _ChatStreamHandler:
         workflow_id = self._get_chat_workflow_id()
         if not workflow_id:
             return JSONResponse(
-                {"error": "no_chat_workflow", "message": "채팅 워크플로우가 아직 설정되지 않았습니다."},
+                {
+                    "error": "no_chat_workflow",
+                    "message": "채팅을 연결할 워크플로우가 아직 없습니다. "
+                    "`xgen-seepage chat-workflow list`로 후보를 보고 "
+                    "`xgen-seepage chat-workflow set <id>`로 연결하세요.",
+                },
                 status_code=503,
             )
         token = await self._get_token()

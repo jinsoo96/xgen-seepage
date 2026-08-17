@@ -20,6 +20,7 @@ import sys
 import uuid
 
 from . import certs, config as cfgmod
+from .agentflow_client import AgentflowApi
 from .auth import AuthApi
 from .bridge import ConnectorMcpBridge
 from .http_client import ApiError, HttpClient
@@ -119,6 +120,72 @@ async def cmd_status(_args: argparse.Namespace) -> int:
         print("토큰 만료/무효. `xgen-seepage login` 다시 필요")
         return 1
     print(f"토큰 유효. 역할: {user.roles}, 권한 {len(user.permissions)}개")
+    return 0
+
+
+async def cmd_chat_workflow_list(_args: argparse.Namespace) -> int:
+    """Excel 태스크팬 채팅을 연결할 수 있는, 이미 XGEN에 있는 워크플로우
+    목록을 보여준다. xgen-seepage가 새로 만들어주지 않는다 - 캔버스에서
+    이미 만든 워크플로우(agents/harness 노드가 든 것) 중에서 고른다."""
+    cfg = cfgmod.load_config()
+    if not cfg.server_url:
+        print("설정된 서버가 없습니다. `xgen-seepage login`을 먼저 실행하세요.", file=sys.stderr)
+        return 1
+    http = HttpClient(cfg.server_url, allow_private_certificate=cfg.allow_private_certificate)
+    auth = AuthApi(http)
+    token = await _ensure_valid_token(cfg, auth)
+    if token is None:
+        print("토큰이 없거나 만료됐습니다. `xgen-seepage login`을 다시 실행하세요.", file=sys.stderr)
+        await http.aclose()
+        return 1
+    http.set_token(token)
+    agentflow = AgentflowApi(http)
+    try:
+        workflows = await agentflow.list_workflows()
+    except ApiError as e:
+        print(f"목록 조회 실패: {e}", file=sys.stderr)
+        return 1
+    finally:
+        await http.aclose()
+    if not workflows:
+        print("워크플로우가 없습니다. XGEN 캔버스에서 먼저 하나 만드세요(agents/harness 노드 포함).")
+        return 0
+    current = cfg.chat_workflow_id
+    for w in workflows:
+        marker = " (현재 연결됨)" if w.workflow_id == current else ""
+        print(f"  {w.workflow_id}  -  {w.workflow_name}{marker}")
+    print("\n`xgen-seepage chat-workflow set <workflow_id>`로 태스크팬 채팅을 연결하세요.")
+    return 0
+
+
+async def cmd_chat_workflow_set(args: argparse.Namespace) -> int:
+    cfg = cfgmod.load_config()
+    if not cfg.server_url:
+        print("설정된 서버가 없습니다. `xgen-seepage login`을 먼저 실행하세요.", file=sys.stderr)
+        return 1
+    http = HttpClient(cfg.server_url, allow_private_certificate=cfg.allow_private_certificate)
+    auth = AuthApi(http)
+    token = await _ensure_valid_token(cfg, auth)
+    if token is None:
+        print("토큰이 없거나 만료됐습니다. `xgen-seepage login`을 다시 실행하세요.", file=sys.stderr)
+        await http.aclose()
+        return 1
+    http.set_token(token)
+    agentflow = AgentflowApi(http)
+    try:
+        workflows = await agentflow.list_workflows()
+    finally:
+        await http.aclose()
+    if not any(w.workflow_id == args.workflow_id for w in workflows):
+        print(
+            f"'{args.workflow_id}'가 워크플로우 목록에 없습니다. "
+            "`xgen-seepage chat-workflow list`로 정확한 id를 확인하세요.",
+            file=sys.stderr,
+        )
+        return 1
+    cfg.chat_workflow_id = args.workflow_id
+    cfgmod.save_config(cfg)
+    print(f"태스크팬 채팅을 '{args.workflow_id}'에 연결했습니다.")
     return 0
 
 
@@ -240,6 +307,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Excel 태스크팬용 로컬 HTTPS 서버를 띄우지 않는다(기본: 띄움)",
     )
     run_p.set_defaults(func=cmd_run)
+
+    chat_wf_p = sub.add_parser(
+        "chat-workflow", help="Excel 태스크팬 채팅을 연결할 XGEN 워크플로우 관리"
+    )
+    chat_wf_sub = chat_wf_p.add_subparsers(dest="chat_workflow_command", required=True)
+
+    chat_wf_list_p = chat_wf_sub.add_parser("list", help="연결 가능한 워크플로우 목록")
+    chat_wf_list_p.set_defaults(func=cmd_chat_workflow_list)
+
+    chat_wf_set_p = chat_wf_sub.add_parser("set", help="태스크팬 채팅을 특정 워크플로우에 연결")
+    chat_wf_set_p.add_argument("workflow_id", help="`chat-workflow list`에서 확인한 workflow_id")
+    chat_wf_set_p.set_defaults(func=cmd_chat_workflow_set)
 
     return p
 

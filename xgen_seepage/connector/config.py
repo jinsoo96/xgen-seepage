@@ -45,11 +45,11 @@ class SeepageConfig:
     user_id: str = ""
     username: str = ""
     allow_private_certificate: bool = False
-    # Excel 태스크팬 채팅이 매 메시지마다 실행하는 저장된 agentflow 워크플로우.
-    # 비어 있으면 첫 `run` 시 자동 생성한다(connector/agentflow_client.py).
+    # Excel 태스크팬 채팅이 매 메시지마다 실행하는 XGEN 워크플로우의 id.
+    # xgen-seepage가 새로 만들지 않는다 - 사용자가 XGEN에 이미 갖고 있는
+    # 워크플로우(agents/harness 노드 포함) 중 하나에 연결하는 것.
+    # `xgen-seepage chat-workflow list`/`set`로 관리한다.
     chat_workflow_id: str = ""
-    chat_provider: str = ""
-    chat_model: str = ""
     taskpane_port: int = DEFAULT_TASKPANE_PORT
 
     def to_dict(self) -> dict[str, Any]:
@@ -70,8 +70,6 @@ def load_config() -> SeepageConfig:
         username=data.get("username", ""),
         allow_private_certificate=bool(data.get("allow_private_certificate", False)),
         chat_workflow_id=data.get("chat_workflow_id", ""),
-        chat_provider=data.get("chat_provider", ""),
-        chat_model=data.get("chat_model", ""),
         taskpane_port=int(data.get("taskpane_port") or DEFAULT_TASKPANE_PORT),
     )
 

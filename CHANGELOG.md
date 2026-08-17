@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.6.0 (2026-08-17)
+
+**설계 정정: "워크플로우 자동생성"이 아니라 "연결"이다.** 0.5.0에서 계획한
+Phase 3(채팅용 워크플로우가 없으면 xgen-seepage가 자동 생성)은 틀린
+방향이었다 - xgen-connector처럼 사용자가 XGEN에 이미 갖고 있는 워크플로우
+중 하나에 태스크팬을 연결해야 한다. 자세한 내용은 `ARCHITECTURE.md` §10.
+
+- **서버 로그로 ERROR401의 진짜 원인을 확정했다**(SSH로 dev-177 파드 로그
+  직접 확인): (1) 방금 만든 워크플로우는 dev 서버 전반에 걸쳐 자기 자신도
+  못 찾는 실제 데이터 일관성 버그가 있고(내 계정만의 문제가 아님 - 기존
+  스케줄 작업도 같은 이유로 죽고 있었다), (2) 그 에러를 사용자에게
+  보여주려는 `error_message_replacer`가 서버 쪽에서 `None`으로 바인딩돼
+  있어 `TypeError`로 한 번 더 죽으면서 진짜 원인이 감춰지고 있었다. 둘 다
+  xgen-seepage 밖의 서버 쪽 문제.
+- **이미 존재가 확인된 워크플로우(`shinhan_blue_agent_v1`)로 재시도하니
+  완전히 정상 동작했다** - 실행 로그 전체가 실시간으로 프록시를 거쳐
+  도착했고 스트림이 끝까지 흘렀다(§8에서 이미 알려진 vLLM 모델 미기동
+  이슈만 남음, 새 문제 아님). "연결" 설계는 이 버그를 구조적으로 비켜간다.
+- `agentflow_client.py::list_workflows()` 신규, CLI
+  `xgen-seepage chat-workflow list`/`set` 추가. `config.py`의 이제 안 쓰는
+  `chat_provider`/`chat_model` 필드(자동생성 템플릿용) 제거.
+
 ## 0.5.0 (2026-08-17)
 
 **Excel 태스크팬 채팅 Phase 2/5: SSE 프록시.** `connector/agentflow_client.py`
