@@ -20,7 +20,9 @@
   패널에서 **에이전트(워크플로우)와 모델(provider)을 골라** 채팅하면 그
   에이전트가 열린 Excel을 편집한다. 이 패널은 office.js에 의존하지 않는 순수
   웹 UI라 XGEN 로그인에만 의존한다(인터넷·Microsoft 애드인 인프라 불필요).
-  Office가 지원하면 Excel 리본 버튼으로도 띄울 수 있다(`taskpane/manifest.xml`).
+  Excel 리본 버튼으로도 띄울 수 있다 - `xgen-seepage install-excel-addin`
+  한 번이면 홈 탭에 "XGEN 채팅" 버튼이 뜬다(**폐쇄망 OK**, Microsoft 클라우드
+  불필요한 로컬 레지스트리 사이드로드).
 - **Excel이 없는 환경**(폐쇄망 등)에서도 LibreOffice로 xlsx를 직접 열어 같은
   셀 읽기/쓰기를 제공한다. 파일을 미리 열어둘 필요도 없다.
 - CSV는 인코딩/구분자를 자동 감지해 읽고 편집하며, 필요하면 Excel로 올려 같은
@@ -63,6 +65,7 @@ python -m PyInstaller --onefile --name xgen-seepage-connector `
 | `xgen-seepage login` | XGEN 서버에 로그인(써 본 서버 목록에서 선택), 토큰을 OS 키체인에 저장 |
 | `xgen-seepage run` | 에이전트-도구 브릿지 + 채팅 패널 로컬 서버를 상주시킨다(포그라운드). `--open-panel`로 패널 자동 열기 |
 | `xgen-seepage panel` | 채팅 패널을 기본 브라우저로 연다(`run`이 켜져 있어야 함) |
+| `xgen-seepage install-excel-addin` | Excel 리본에 XGEN 채팅 버튼 설치(**폐쇄망 OK**, 클라우드 불필요). `uninstall-excel-addin`으로 제거 |
 | `xgen-seepage chat-workflow list`/`set` | 패널 기본 에이전트(워크플로우) 관리(패널 드롭다운으로도 선택 가능) |
 | `xgen-seepage status` | 현재 설정·토큰 유효성 확인 |
 | `xgen-seepage logout` | 저장된 토큰 삭제 |
