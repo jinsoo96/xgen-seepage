@@ -563,6 +563,23 @@ harness 노드에 `node_parameter`로 `provider=anthropic`을 주입하니 **바
 live_adapter → **진짜 셀이 바뀜**까지 전부 실측 확인. 이게 이 제품의 핵심
 가치("에이전트의 Excel 자유 편집")가 실제로 동작함을 처음으로 증명한 것.
 
+**코어 중의 코어 - 별도 프로세스가 "사용자가 연 Excel"을 편집하는 실제
+배포 형태까지 검증(2026-08-17)**: 위 두 검증은 커넥터와 Excel이 같은
+프로세스였다. 실제 사용은 사용자가 Excel을 따로 열고 커넥터(`xgen-seepage
+run`)가 별도 프로세스로 도는 형태다 - 그 경우 커넥터의 `live_adapter`가
+**다른 프로세스가 연 Excel을 COM으로 보고 편집할 수 있는가**가 진짜 코어
+질문이었다. 실제 배포 형태 그대로 재현: 세션 1에서 예약 작업 A가
+`EXCEL.EXE user_doc.xlsx`로 워크북을 열어두고(A1="USER_BEFORE"), 별도
+예약 작업 B(다른 프로세스)가 `live_adapter.list_open_workbooks()`로
+그 워크북을 찾아 A1을 편집. 결과: B가 `34172:user_doc.xlsx`(A의 Excel,
+PID 34172)를 정확히 찾아냈고, **A1을 "USER_BEFORE"에서 "42"로 실제로
+바꿨다**(같은 COM 라이브 워크북에서 read-back). 즉 **사용자가 연 Excel
+문서를 별도의 커넥터 프로세스가 침투해 편집**하는, 이 제품의 존재 이유
+자체가 실제 배포 형태로 증명됐다. (같은 세션이 전제 - 정상 사용에서
+사용자는 Excel과 커넥터를 자기 데스크톱 세션에서 함께 띄운다. 숨김
+`visible=False` Excel을 제3의 프로세스에서 읽으면 안 보이는데, 그건 ROT
+미등록 + 세션 격리 때문이고 정상 사용 형태가 아니다.)
+
 **그래서 패널에 provider/model 선택도 붙였다**: `GET /providers`(서버에
 설정된 provider와 기본 모델)를 추가하고, 패널에서 고른 provider/model을
 `/chat/stream`이 받아 `execute_stream`이 워크플로우의 모든 `agents/harness`
