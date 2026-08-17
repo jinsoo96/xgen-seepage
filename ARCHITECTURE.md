@@ -541,9 +541,40 @@ WebView2 안에서 콘텐츠를 못 그려(검은/빈 화면) 공유 폴더 탭�
 붙이도록 했다. 서버에 `GET /workflows`(그 계정 워크플로우 목록)를 추가하고
 `/chat/stream`이 요청 바디의 `workflow_id`를 받게 해서, CLI로 미리 하나
 박아둘 필요가 없어졌다. Playwright로 실측: 드롭다운이 실제 계정의
-워크플로우 2개를 그대로 불러오고, `shinhan_blue_agent_v1`을 골라 메시지를
-보내니 그 에이전트로 실제 SSE가 스트리밍됐다(응답 자체는 §8의 vLLM 미기동
-503만 남음).
+워크플로우 2개를 그대로 불러오고, `shinhan_blue_agent_v1`을 골라 실행됐다.
+
+**"실동작"의 진짜 벽 = 503 No model loaded, 원인 규명 + 해결(2026-08-17)**:
+이 시점까지 채팅 실행이 매번 `503 No model loaded`로 죽어서 "에이전트가
+실제로 셀을 편집하는 전체 루프"를 한 번도 못 봤다(사용자가 정당하게 지적:
+"실동작은 아무것도 안 되는데 다 됐다고 하지 마라"). 원인을 실서버 설정으로
+규명했다: shinhan 워크플로우의 harness provider가 비어(`None`) 있어 서버
+기본값으로 떨어지는데, 그게 **안 떠 있는 vLLM 모델**을 때려 503이 났다.
+`/api/config/persistent`를 보니 서버에 `anthropic`(키 살아있음,
+claude-sonnet-4-6)을 포함해 provider가 여러 개 설정돼 있었다. 실행 시
+harness 노드에 `node_parameter`로 `provider=anthropic`을 주입하니 **바로
+동작했다.**
+
+**실제로 에이전트가 진짜 Excel 셀을 편집하는 전체 루프를 read-back으로 두 번
+직접 검증했다(실제 Excel 머신, 한 프로세스)**: (1) A1="BEFORE"로 시작 →
+에이전트에게 "A1을 42로 바꿔" → 에이전트가 `mcp_xgen-seepage_set_live_cell`을
+실제 호출 → **A1 읽으니 42.0**. (2) 새로 만든 provider 주입 코드 경로
+(`execute_stream(provider="anthropic")`)로 B2="X" → "B2를 DONE으로" →
+**B2 읽으니 "DONE"**. 즉 로그인 → 브릿지 → 에이전트 → 도구 호출 →
+live_adapter → **진짜 셀이 바뀜**까지 전부 실측 확인. 이게 이 제품의 핵심
+가치("에이전트의 Excel 자유 편집")가 실제로 동작함을 처음으로 증명한 것.
+
+**그래서 패널에 provider/model 선택도 붙였다**: `GET /providers`(서버에
+설정된 provider와 기본 모델)를 추가하고, 패널에서 고른 provider/model을
+`/chat/stream`이 받아 `execute_stream`이 워크플로우의 모든 `agents/harness`
+노드에 주입한다. Playwright로 실측: 드롭다운에 anthropic/openai/gemini/vllm/
+deepseek이 뜨고, anthropic을 골라 "A1을 42로" 보내니 503 없이 에이전트가
+"A1을 42로 변경했습니다"로 응답했다. "서버 기본값"을 그대로 두면 주입 안
+하고 서버가 알아서 고른다.
+
+**서버 선택(여러 XGEN - jeju/dev/prod)**: 로그인 시 지금까지 써 본 XGEN
+서버 목록(`config.json`의 `known_servers`)을 번호로 보여주고 골라 로그인하게
+했다. 고객사 내부 주소를 레포에 하드코딩하지 않으려고, 프리셋이 아니라
+"실제로 로그인해 본 서버"만 로컬 config에 쌓아 다음 login 때 보여준다.
 
 **폐쇄망 요구("인터넷 의존 아니라 XGEN 로그인이면 연결") - office.js를
 통째로 제거해서 해결(2026-08-17 사용자 지적)**: 처음엔 office.js를 로컬로

@@ -14,7 +14,7 @@ xgen-connector `src/main/config.ts`를 참고했다. NOTICE 참조).
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -51,6 +51,11 @@ class SeepageConfig:
     # `xgen-seepage chat-workflow list`/`set`로 관리한다.
     chat_workflow_id: str = ""
     taskpane_port: int = DEFAULT_TASKPANE_PORT
+    # 지금까지 로그인해 본 XGEN 서버 URL들. 다음 `login` 때 목록으로 보여줘
+    # 다시 타이핑하지 않고 고를 수 있게 한다(jeju/dev/prod 등 여러 XGEN).
+    # 고객사 내부 주소를 레포에 하드코딩하지 않기 위해, 프리셋이 아니라
+    # "실제로 써 본 서버"만 로컬 config에 쌓는다.
+    known_servers: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -71,6 +76,7 @@ def load_config() -> SeepageConfig:
         allow_private_certificate=bool(data.get("allow_private_certificate", False)),
         chat_workflow_id=data.get("chat_workflow_id", ""),
         taskpane_port=int(data.get("taskpane_port") or DEFAULT_TASKPANE_PORT),
+        known_servers=list(data.get("known_servers") or []),
     )
 
 

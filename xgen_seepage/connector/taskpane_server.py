@@ -70,6 +70,23 @@ class _ChatApiHandler:
             self._agentflow.set_token(token)
         return token
 
+    async def list_providers(self, _request: Request):
+        """패널의 provider/model 드롭다운이 채우는 목록. 어느 provider의
+        모델을 쓸지 골라 실행에 주입하기 위함(503 No model loaded 회피)."""
+        token = await self._authed()
+        if token is None:
+            return JSONResponse(
+                {"error": "not_logged_in", "message": "`xgen-seepage login`이 필요합니다."},
+                status_code=401,
+            )
+        try:
+            providers = await self._agentflow.list_providers()
+        except ApiError as e:
+            return JSONResponse({"error": "xgen_error", "detail": e.body}, status_code=e.status)
+        return JSONResponse(
+            {"providers": [{"provider": p.provider, "default_model": p.default_model} for p in providers]}
+        )
+
     async def list_workflows(self, _request: Request):
         """태스크팬 드롭다운이 채우는 에이전트(워크플로우) 목록. XGEN에
         로그인만 돼 있으면 그 계정이 가진 워크플로우 중 하나를 골라 바로
@@ -121,12 +138,16 @@ class _ChatApiHandler:
                 status_code=503,
             )
         interaction_id = body.get("interaction_id") or "default"
+        provider = body.get("provider") or None
+        model = body.get("model") or None
 
         gen = self._agentflow.execute_stream(
             workflow_id=workflow_id,
             workflow_name=workflow_id,
             input_data=message,
             interaction_id=interaction_id,
+            provider=provider,
+            model=model,
         )
         # StreamingResponse는 첫 send에서 상태 코드를 확정한다. XGEN 쪽 에러
         # (예: 워크플로우 없음)는 스트림을 열자마자 알 수 있으므로, 첫 청크를
@@ -156,6 +177,7 @@ def _build_app(chat_handler: _ChatApiHandler | None) -> Starlette:
     ]
     if chat_handler is not None:
         routes.append(Route("/workflows", chat_handler.list_workflows, methods=["GET"]))
+        routes.append(Route("/providers", chat_handler.list_providers, methods=["GET"]))
         routes.append(Route("/chat/stream", chat_handler.chat_stream, methods=["POST"]))
     if _TASKPANE_DIR.is_dir():
         routes.append(Mount("/", app=StaticFiles(directory=str(_TASKPANE_DIR), html=True)))

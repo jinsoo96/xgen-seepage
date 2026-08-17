@@ -11,6 +11,7 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 const agentSel = document.getElementById("agent");
 const reloadBtn = document.getElementById("reload");
+const providerSel = document.getElementById("provider");
 
 function setStatus(text, cls) {
   statusEl.textContent = text;
@@ -64,6 +65,29 @@ async function loadAgents() {
 
 /** XGEN 커넥터(로컬 서버)에 붙어 있는지 확인하고 준비 상태로 만든다.
  * office.js가 아니라 이 연결이 이 패널의 유일한 의존성이다. */
+/** provider/model 드롭다운을 채운다. 서버에 설정된 provider의 모델을 골라
+ * 실행에 주입 - 워크플로우 provider가 비어 "No model loaded 503"이 나는 걸
+ * 피한다. "서버 기본값"을 그대로 두면 주입 안 하고 서버가 알아서 고른다. */
+async function loadProviders() {
+  try {
+    const resp = await fetch("/providers");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const list = data.providers || [];
+    providerSel.innerHTML = '<option value="">서버 기본값</option>';
+    for (const p of list) {
+      const opt = document.createElement("option");
+      opt.value = p.provider;
+      opt.dataset.model = p.default_model || "";
+      opt.textContent = p.default_model ? `${p.provider} (${p.default_model})` : p.provider;
+      providerSel.appendChild(opt);
+    }
+    providerSel.disabled = false;
+  } catch (e) {
+    /* provider 목록 실패는 치명적이지 않다 - 서버 기본값으로 진행 */
+  }
+}
+
 async function init() {
   input.disabled = false;
   sendBtn.disabled = false;
@@ -79,6 +103,7 @@ async function init() {
     setStatus(`커넥터에 연결할 수 없습니다. \`xgen-seepage run\`이 켜져 있는지 확인하세요.`, "error");
   }
   loadAgents();
+  loadProviders();
 }
 
 reloadBtn.addEventListener("click", loadAgents);
@@ -155,10 +180,12 @@ async function sendMessage(message) {
   sendBtn.disabled = true;
   let assistantDiv = null;
   try {
+    const provider = providerSel.value;
+    const model = provider ? (providerSel.selectedOptions[0].dataset.model || "") : "";
     const resp = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, workflow_id: workflowId }),
+      body: JSON.stringify({ message, workflow_id: workflowId, provider, model }),
     });
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({}));

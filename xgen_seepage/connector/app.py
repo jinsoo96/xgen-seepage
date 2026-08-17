@@ -49,6 +49,23 @@ def _env_bool(name: str) -> bool | None:
     raise ValueError(f"XGEN_SEEPAGE_{name} must be true/false/1/0, got {raw!r}")
 
 
+def _pick_server(known: list[str]) -> str:
+    """이미 로그인해 본 XGEN 서버가 있으면 목록으로 보여주고 번호로 고르게
+    한다(여러 XGEN - jeju/dev/prod 등을 오갈 때 다시 타이핑 안 하도록).
+    없거나 '새 서버'를 고르면 직접 입력받는다."""
+    if known:
+        print("로그인할 XGEN 서버를 고르세요:")
+        for i, url in enumerate(known, 1):
+            print(f"  {i}. {url}")
+        print(f"  {len(known) + 1}. 새 서버 직접 입력")
+        choice = input("번호: ").strip()
+        if choice.isdigit():
+            n = int(choice)
+            if 1 <= n <= len(known):
+                return known[n - 1]
+    return input("XGEN 서버 URL (예: https://xgen.example.com): ").strip()
+
+
 async def cmd_login(args: argparse.Namespace) -> int:
     server_url = args.server or _env("SERVER_URL")
     email = args.email or _env("EMAIL")
@@ -57,8 +74,9 @@ async def cmd_login(args: argparse.Namespace) -> int:
     if allow_private_certificate is None:
         allow_private_certificate = _env_bool("ALLOW_PRIVATE_CERTIFICATE") or False
 
+    existing = cfgmod.load_config()
     if not server_url:
-        server_url = input("XGEN 서버 URL (예: https://xgen.example.com): ").strip()
+        server_url = _pick_server(existing.known_servers)
     if not email:
         email = input("이메일: ").strip()
     if not password:
@@ -74,11 +92,16 @@ async def cmd_login(args: argparse.Namespace) -> int:
     finally:
         await http.aclose()
 
+    # 방금 로그인한 서버를 known_servers 맨 앞에 넣어 다음 login 때 목록에 뜨게.
+    known = [server_url] + [s for s in existing.known_servers if s != server_url]
     cfg = cfgmod.SeepageConfig(
         server_url=server_url,
         user_id=result.user_id,
         username=result.username,
         allow_private_certificate=allow_private_certificate,
+        chat_workflow_id=existing.chat_workflow_id,
+        taskpane_port=existing.taskpane_port,
+        known_servers=known,
     )
     cfgmod.save_config(cfg)
     try:

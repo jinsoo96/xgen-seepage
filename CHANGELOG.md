@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.11.0 (2026-08-17)
+
+**실동작 처음으로 끝까지 증명 + 그걸 막던 503 해결 + provider/서버 선택.**
+사용자 지적: 매번 "No model loaded 503"이라 실제 동작을 한 번도 못 봤는데
+"다 됐다"고 하는 건 문제다. 맞는 지적이었고, 이번에 실제로 풀었다. 자세한
+내용은 `ARCHITECTURE.md` §11.
+
+- **503 원인 규명 + 해결**: 워크플로우 harness provider가 비면 서버 기본값
+  (안 떠 있는 vLLM)으로 떨어져 죽었다. `execute_stream`이 provider/model을
+  받아 워크플로우의 `agents/harness` 노드에 `node_parameter`로 주입하도록
+  추가. `provider=anthropic`(서버에 키 있음) 주입하니 바로 동작.
+- **에이전트가 진짜 Excel 셀 편집하는 전체 루프를 read-back으로 직접 검증**
+  (실제 Excel 머신): A1 "BEFORE"→42, B2 "X"→"DONE" 둘 다 셀 읽어서 확인.
+  로그인→브릿지→에이전트→도구 호출→live_adapter→실제 셀 변경까지 실측.
+- 패널에 provider/model 드롭다운 추가(`GET /providers`). Playwright로
+  anthropic 골라 실행 시 503 없이 셀 편집 확인.
+- 로그인 시 서버 선택: `known_servers`(써 본 XGEN 서버 목록)를 번호로
+  보여주고 고르게. 고객사 주소를 레포에 하드코딩하지 않고 로컬에만 쌓음.
+
 ## 0.10.0 (2026-08-17)
 
 **채팅 패널에서 office.js 의존 완전 제거 - 순수 XGEN 의존 웹 UI로.**
