@@ -81,6 +81,7 @@ class ConnectorMcpBridge:
         self._stopped = True
         self._catalog_seq = 0
         self._pending_catalog_id = ""
+        self._current_ws: Any = None
 
     async def run(self, server_url: str, user_id: str) -> None:
         """접속을 유지하며 끊기면 지수 백오프로 재접속한다. stop()이
@@ -102,7 +103,17 @@ class ConnectorMcpBridge:
             backoff = min(RECONNECT_MAX_SECONDS, backoff * 1.8)
 
     def stop(self) -> None:
+        """실측(2026-08-17, 실제 Excel 머신)으로 찾은 버그: `_stopped` 플래그만
+        세우면 재접속 사이 대기 구간에서만 체크된다 - `_connect_once`의
+        `async for raw in ws:` 수신 루프가 메시지를 기다리며 블록돼 있는
+        동안엔 아무도 안 깨워서 `run()`이 영원히 안 끝난다(정상 종료 경로가
+        사실상 hang). 지금 연결된 소켓이 있으면 직접 닫아서 그 루프를
+        깨운다 - `close()`는 코루틴이라 동기 메서드 안에서 스케줄만 건다
+        (호출 시점에 이벤트 루프가 돌고 있다는 전제, 이 클래스의 모든 실사용
+        경로가 그렇다)."""
         self._stopped = True
+        if self._current_ws is not None:
+            asyncio.ensure_future(self._current_ws.close())
 
     async def _connect_once(self, server_url: str, user_id: str) -> None:
         token = await self._get_token()
@@ -122,6 +133,7 @@ class ConnectorMcpBridge:
             url, additional_headers=headers, compression=None, **ssl_kwarg
         ) as ws:
             self.status = BridgeStatus(connected=True)
+            self._current_ws = ws
             await self._send_hello(ws)
             heartbeat = asyncio.create_task(self._heartbeat_loop(ws))
             try:
@@ -129,6 +141,7 @@ class ConnectorMcpBridge:
                     await self._on_message(ws, raw)
             finally:
                 heartbeat.cancel()
+                self._current_ws = None
 
     async def _heartbeat_loop(self, ws: Any) -> None:
         try:

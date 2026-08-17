@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0 (2026-08-17)
+
+**`live_adapter`(xlwings/COM)를 실제 Microsoft Excel로 처음 끝까지
+검증.** 실제 Excel이 설치된 사용자의 다른 Windows PC에 접속해 24개 도구 중
+`live_*` 8개 전부를 실제 열린 통합문서 상대로 왕복 확인했다. 자세한
+내용은 `ARCHITECTURE.md` §11.
+
+- **실제로 찾은 버그 3개**: xlwings 0.36.16엔 `book.saved`가 없어(`.api.Saved`로
+  수정) `list_open_workbooks`가 즉사했고, 다중 셀 range의 `.formula`가
+  list가 아니라 tuple로 와서 `read_range`가 기형적으로 중첩된 배열을
+  냈으며, Excel의 모든 숫자가 float으로 오는 특성 때문에 정수값이
+  "3.0"으로 보였다(`_cellfmt.cell_text` 수정).
+- **별개로 찾은 인프라 버그**: `ConnectorMcpBridge.stop()`이 진행 중인 WS
+  연결을 안 닫아서 정상 종료(`xgen-seepage run`을 Ctrl+C)가 영원히 안
+  끝나는 hang이 있었다. 실제 정상 종료 시나리오를 테스트하다 발견, 수정 후
+  재확인.
+- 43개 테스트 통과, ruff/mypy 클린.
+
 ## 0.6.1 (2026-08-17)
 
 **심각한 패키징 버그 수정 - 얼린 exe가 자기 자신을 실행조차 못 했다.**

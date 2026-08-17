@@ -40,7 +40,13 @@ def maybe_number(s: str) -> int | float | None:
 
 
 def cell_text(v: Any) -> str:
-    """셀 값을 사람이 읽는 텍스트로. 날짜는 시간이 0이면 날짜만 표시."""
+    """셀 값을 사람이 읽는 텍스트로. 날짜는 시간이 0이면 날짜만 표시.
+
+    실측(2026-08-17, 실제 Excel/COM): Excel엔 내부 정수 타입이 없어
+    `Range.Value`는 42처럼 딱 떨어지는 값도 항상 파이썬 float(42.0)로
+    돌아온다. 그대로 `str()`하면 "42.0"이 되어 Excel 화면에 실제로 보이는
+    "42"와 어긋난다 - 정수값 float은 트레일링 `.0` 없이 보여준다.
+    """
     if v is None:
         return ""
     if isinstance(v, datetime.datetime):
@@ -49,6 +55,8 @@ def cell_text(v: Any) -> str:
         return v.isoformat(sep=" ")
     if isinstance(v, datetime.date):
         return v.isoformat()
+    if isinstance(v, float) and v.is_integer():
+        return str(int(v))
     return str(v)
 
 

@@ -443,14 +443,58 @@ _trust_windows`) - 인증서 자체는 유효하니 최초 1회 브라우저/Off
 
 **Phase 5(패키징)는 완료됐다** - §7에 기록한 `pathex` 버그 발견/수정과
 얼린 exe로의 태스크팬 전체 왕복 검증이 그 내용이다. **남은 단계는 Phase 4
-(실제 Excel에 태스크팬)뿐이다 - Excel이 없는 이 머신에서는 구조적으로
-진행 불가**, §11 하단의 Excel COM 미검증 항목과 같은 성격. 게다가
-Office.js 자체가 인터넷 전혀 없이 로드되는지도 MS 공식 문서로도
-불확실해서(자체 호스팅 비권장, 실제 시도자는 인터넷 끄니 안 됐다고 보고)
+(실제 Excel에 태스크팬)뿐이다** - SERVER_JS 자체는 Excel이 없어 구조적으로
+막혀 있었지만(§12), §11에서 실제 Excel이 있는 다른 머신을 확보했으니 더는
+불가능하지 않다. 게다가 Office.js 자체가 인터넷 전혀 없이 로드되는지도
+MS 공식 문서로도 불확실해서(자체 호스팅 비권장, 실제 시도자는 인터넷 끄니 안
+됐다고 보고)
 실제 Excel 머신에서 함께 확인해야 한다. "워크플로우 자동생성"이던 옛
 Phase 3은 폐기 - 연결 메커니즘으로 이미 대체됐다.
 
-## 11. 알려진 제약 / 로드맵
+## 11. 실제 Excel 머신으로 `live_adapter` 끝까지 검증 (2026-08-17)
+
+이 저장소를 만든 SERVER_JS엔 Excel이 없어 `live_adapter`(xlwings/COM)는
+프로젝트 시작부터 이 시점까지 한 번도 실제 검증이 안 된 상태였다.
+사용자의 다른 개인 Windows PC(Tailscale로 접속)에 실제 Microsoft Office가
+설치돼 있는 걸 확인하고, SSH로 붙어 격리된 conda 환경에 저장소를 클론해
+`tools.call_tool()`로 24개 도구 중 `live_*` 8개 전부를 실제 열린 Excel
+통합문서 상대로 왕복 검증했다(open/list/schema/get_cell/set_cell/수식쓰기/
+병합-쓰기보호/range 읽기·쓰기/행추가/activate). 전부 통과했지만, 그 과정에서
+**실제로 찾은 버그 3개**:
+
+1. **`book.saved`가 존재하지 않는다**: `AttributeError` - 실제 xlwings
+   0.36.16의 `Book` 래퍼엔 `.saved` 프로퍼티가 없고 `.save()` 메서드만
+   있다. 진짜 Excel Application 객체 모델의 `Workbook.Saved`는 실재하므로
+   xlwings가 감싸지 않은 raw COM(`book.api.Saved`)으로 바로 접근하도록
+   고쳤다.
+2. **다중 셀 range의 `.formula`가 list가 아니라 tuple로 온다**: `.value`는
+   `.options(ndim=2)`로 정규화되지만 `.formula`는 raw COM 반환값 그대로다.
+   `isinstance(..., list)`만 걸러내는 코드가 `read_range`와
+   `get_sheet_schema`의 미리보기 양쪽에 있었는데, tuple은 안 걸러져서
+   `read_range`는 이미 2차원인 걸 한 번 더 감싸 기형적으로 중첩된 배열을
+   냈고(`[[[[...]]]]`), 스키마 미리보기 쪽은 셀별 수식을 못 집어내는
+   죽은 분기가 됐다(다행히 그쪽은 폴백 경로가 우연히 같은 값을 내서 겉으로
+   드러나진 않았다). 둘 다 tuple도 함께 정규화하도록 고쳤다.
+3. **정수값 float이 "3.0"으로 보인다**: Excel엔 내부 정수 타입이 없어
+   `Range.Value`는 42 같은 값도 항상 파이썬 `float`로 돌아온다. 공유
+   `_cellfmt.cell_text()`가 그냥 `str()`만 해서 Excel 화면에 실제로 보이는
+   "42"와 어긋났다(CSV·LibreOffice 경로는 각자 다른 값 소스라 이 문제가
+   한 번도 안 드러났었다). 정수값 float은 트레일링 `.0` 없이 보여주도록 고쳤다.
+
+**따로 발견한 인프라 버그(같은 검증 중, `bridge.py`)**: `ConnectorMcpBridge.
+stop()`이 `_stopped` 플래그만 세우고 실제 진행 중인 WS 연결은 안 닫아서,
+`_connect_once`의 메시지 수신 루프(`async for raw in ws`)가 막혀 있는 동안
+`run()`이 절대 안 끝나는 hang이 있었다. 정상 종료 시나리오를 테스트하다가
+`asyncio.gather`가 영원히 안 돌아오는 걸로 발견 - `xgen-seepage run`을
+Ctrl+C로 정상 종료하려는 모든 실사용 경로에 있던 잠재 버그였다. `stop()`이
+현재 연결을 직접 닫도록 고쳐서 해결하고, 고친 뒤 같은 머신에서 정상
+종료까지 확인했다(오래 걸리지 않고 프로세스가 실제로 끝남, 잔여 프로세스
+없음).
+
+이걸로 §9(LibreOffice)에 이어 두 번째 셀 편집 백엔드까지 실제 애플리케이션
+왕복 검증이 끝났다. §12의 "Windows COM 미검증" 항목은 이제 해소됨.
+
+## 12. 알려진 제약 / 로드맵
 
 - **폐쇄망 반입 경로 미정. 실제 조사 결과**: "제주은행" 폐쇄망 사례를 조사해보니,
   이 회사의 기존 폐쇄망 반입은 **전부 Docker 이미지**로 이뤄진다(USB로 물리 반입
@@ -473,11 +517,7 @@ Phase 3은 폐기 - 연결 메커니즘으로 이미 대체됐다.
   를 별도로 쓰면 된다(같은 dataclass 명명 규칙이라 에이전트 입장에서 다루기 쉽다).
 - **macOS 미검증**: xlwings의 AppleScript 경로는 API상 동일하게 동작해야 하지만
   실제 검증하지 못했다.
-- **Windows COM, 실제 Excel 붙여서 하는 E2E는 여전히 미검증**: 이 저장소를
-  만든 SERVER_JS 머신에는 Microsoft Excel이 설치돼 있지 않아(§9) `live_adapter`가
-  실제로 열려 있는 Excel 통합문서의 셀을 읽고/쓰는 COM 경로 자체는 검증하지
-  못했다. §9의 LibreOffice 백엔드가 "Excel 없는 환경에서 셀 IO"라는 요구사항
-  자체는 채우므로 우선순위는 낮다. 필요하면 Excel이 실제 설치된 Windows
-  머신에서 `get_live_schema`/`set_live_cell`/`read_live_range`를 열린 파일로
-  직접 스모크 테스트.
+- **Windows COM, 실제 Excel 붙여서 하는 E2E - §11에서 해소됨**: 실제 Excel이
+  설치된 Windows 머신에서 `live_adapter`의 8개 도구 전부를 실제 통합문서
+  상대로 왕복 검증했고, 그 과정에서 찾은 버그 3개(§11)도 고쳤다.
 - **NSIS/설치 마법사 UX**: §7 참조, 아직 onefile exe 단계.

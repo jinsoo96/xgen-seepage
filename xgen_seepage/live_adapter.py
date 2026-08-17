@@ -89,7 +89,12 @@ def list_open_workbooks() -> list[WorkbookInfo]:
                     app_pid=app.pid,
                     sheets=[s.name for s in book.sheets],
                     active_sheet=active_name,
-                    saved=book.saved,
+                    # 실측(2026-08-17, 실제 Excel/xlwings 0.36.16): xlwings의
+                    # Book 래퍼엔 `.saved` 프로퍼티가 없다(`.save()` 메서드만
+                    # 있음) - `AttributeError`. 진짜 Excel Application 객체
+                    # 모델의 `Workbook.Saved`는 실재하므로, xlwings가 감싸지
+                    # 않은 raw COM 객체(`book.api`)로 바로 접근한다.
+                    saved=bool(book.api.Saved),
                 )
             )
     return out
@@ -211,7 +216,14 @@ def get_sheet_schema(
                 if (r, c) in covered:
                     continue
                 raw = block[r][c] if visible > 0 else None
-                formula = formula_block[r][c] if isinstance(formula_block, list) else formula_block
+                # 실측(2026-08-17): 다중 셀 range의 `.formula`는 tuple로 온다
+                # (read_range와 같은 이유) - list만 걸러내면 늘 else로 빠져서
+                # 셀별 formula를 못 집어낸다.
+                formula = (
+                    formula_block[r][c]
+                    if isinstance(formula_block, (list, tuple))
+                    else formula_block
+                )
                 text = cell_text(raw)
                 if isinstance(formula, str) and formula.startswith("="):
                     text = f"{cell_text(raw)}"  # 계산된 값을 보여준다(수식은 get_cell에서 확인)
@@ -350,9 +362,17 @@ def read_range(
     ws = _sheet(workbook_id, sheet)
     rng = ws.range((row0 + 1, col0 + 1), (row1 + 1, col1 + 1))
     values = rng.options(ndim=2).value
-    formulas = rng.formula
-    if not isinstance(formulas, list):
-        formulas = [[formulas]]
+    # 실측(2026-08-17, 실제 Excel/xlwings 0.36.16): 다중 셀 range의 `.formula`는
+    # list가 아니라 **tuple의 tuple**로 온다(`.value`는 `.options(ndim=2)`로
+    # 정규화되지만 `.formula`는 그대로 raw COM 반환값이다). `isinstance(...,
+    # list)` 체크는 tuple을 못 걸러서 이미 2차원인 걸 `[[그대로]]`로 한 번 더
+    # 감싸버리는 버그가 있었다 - 1x1(스칼라)/다중 셀(tuple) 둘 다 명시적으로
+    # 정규화한다.
+    raw_formulas = rng.formula
+    if isinstance(raw_formulas, (list, tuple)):
+        formulas = [list(row) for row in raw_formulas]
+    else:
+        formulas = [[raw_formulas]]
     return {
         "row0": row0, "col0": col0, "row1": row1, "col1": col1,
         "values": values,
