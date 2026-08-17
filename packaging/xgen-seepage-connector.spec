@@ -1,5 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
+import sys
 
 from PyInstaller.utils.hooks import collect_all
 
@@ -19,6 +20,33 @@ hiddenimports = []
 for pkg in ('keyring', 'uvicorn', 'starlette'):
     tmp_ret = collect_all(pkg)
     datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+# Real, found-by-building bug (2026-08-17): on a conda Python, OpenSSL lives in
+# <env>/Library/bin (libssl-3-x64.dll, libcrypto-3-x64.dll), a directory
+# PyInstaller does NOT scan. The build succeeds but the frozen exe crashes on the
+# very first HTTPS-touching import with "ImportError: DLL load failed while
+# importing _ssl: The specified procedure could not be found" - _ssl.pyd loads
+# some other (wrong-version) libcrypto from the system PATH instead. That means
+# the connector can't reach the XGEN server at all. Bundle the correct DLLs
+# explicitly. On a non-conda Python these globs simply find nothing (no-op).
+_py_dir = os.path.dirname(sys.executable)
+_ssl_dll_dirs = [
+    os.path.join(_py_dir, 'Library', 'bin'),  # conda
+    os.path.join(_py_dir, 'DLLs'),             # standard CPython
+    _py_dir,
+]
+_ssl_dll_names = (
+    'libssl-3-x64.dll', 'libcrypto-3-x64.dll',  # OpenSSL 3.x, 64-bit
+    'libssl-3.dll', 'libcrypto-3.dll',
+    'libssl-1_1-x64.dll', 'libcrypto-1_1-x64.dll',  # OpenSSL 1.1.x fallback
+)
+_seen_ssl = set()
+for _d in _ssl_dll_dirs:
+    for _n in _ssl_dll_names:
+        _p = os.path.join(_d, _n)
+        if _n not in _seen_ssl and os.path.exists(_p):
+            binaries += [(_p, '.')]
+            _seen_ssl.add(_n)
 
 # uvicorn picks its event-loop/HTTP-protocol backends at runtime via
 # importlib string dispatch (loop="auto"/http="auto"), which PyInstaller's

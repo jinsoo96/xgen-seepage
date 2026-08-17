@@ -67,10 +67,14 @@ xgen-seepage panel                 # 채팅 패널을 기본 브라우저로 연
 ```powershell
 git clone https://github.com/jinsoo96/xgen-seepage.git
 cd xgen-seepage
-pip install -e ".[build]"
+pip install -e ".[live,build]"
 python -m PyInstaller packaging/xgen-seepage-connector.spec
-# 산출물: packaging/dist/xgen-seepage-connector.exe
+# 산출물: dist/xgen-seepage-connector.exe (스펙을 레포 루트에서 돌린 기준)
 ```
+
+빌드 머신이 conda 환경이면 스펙이 conda의 OpenSSL DLL(`Library\bin`)까지 챙겨
+번들한다(안 그러면 얼린 exe가 `_ssl` DLL 로드 실패로 XGEN에 못 붙는다. 일반
+venv에선 자동으로 무관).
 
 **비대화형/대량 설치**(로그인을 스크립트로): 환경변수 `XGEN_SEEPAGE_SERVER_URL` /
 `XGEN_SEEPAGE_EMAIL` / `XGEN_SEEPAGE_PASSWORD`로 `login`을 자동화할 수 있다.

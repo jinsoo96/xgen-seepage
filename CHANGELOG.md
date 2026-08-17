@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.2 (2026-08-17)
+
+**얼린 exe가 실행이 안 되던 진짜 버그 수정(재검수로 발견).** 공개된 코드로
+exe를 다시 얼려보니 첫 HTTPS 관련 import에서 `ImportError: DLL load failed
+while importing _ssl`로 즉사했다 - 즉 폐쇄망 설치파일이 XGEN에 아예 못 붙는
+상태였다. 원인: conda Python은 OpenSSL DLL을 `<env>\Library\bin`에 두는데
+PyInstaller가 거길 안 뒤져 `libssl-3-x64.dll`/`libcrypto-3-x64.dll`이 번들에서
+빠졌고, `_ssl.pyd`가 시스템의 잘못된 버전을 물어 "procedure not found"가 났다.
+
+- 스펙이 conda OpenSSL DLL을 명시적으로 번들하게 수정(일반 venv에선 no-op).
+  재빌드한 exe로 `--help`/`server list`/`status`와 실제 `login`(HTTPS 200 OK)까지
+  얼린 exe로 재확인.
+- README의 exe 산출물 경로를 실제(`dist/`)로 정정하고 conda 빌드 주의를 추가.
+
 ## 0.14.1 (2026-08-17)
 
 **설치 안내 + 리본 버튼 브랜딩.**

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xgen-seepage"
-version = "0.14.1"
+version = "0.14.2"
 description = "Standalone, offline-installable XGEN connector for Excel/CSV: logs into an XGEN server directly (own auth, own agent-tool bridge, no xgen-connector dependency) and lets XGEN agents edit live-open Excel workbooks and CSV files, formulas included. Works even without Excel installed via a LibreOffice(UNO) backend."
 readme = "README.md"
 requires-python = ">=3.10"
