@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 import uuid
+import webbrowser
 
 from . import certs, config as cfgmod
 from .agentflow_client import AgentflowApi
@@ -212,6 +213,22 @@ async def cmd_chat_workflow_set(args: argparse.Namespace) -> int:
     return 0
 
 
+async def cmd_panel(_args: argparse.Namespace) -> int:
+    """채팅 패널을 기본 브라우저로 연다. Excel 리본 버튼(Office 애드인)이
+    이 Office 버전에서 안 뜨더라도 패널을 쓸 수 있는 확실한 경로다 - 패널은
+    office.js에 의존하지 않는 순수 웹 UI라 브라우저로 열어도 그대로 동작한다.
+    `xgen-seepage run`이 켜져 있어야 한다(패널은 그 로컬 서버에 붙는다)."""
+    cfg = cfgmod.load_config()
+    url = f"https://127.0.0.1:{cfg.taskpane_port}/index.html"
+    print(f"채팅 패널: {url}")
+    print("(`xgen-seepage run`이 켜져 있어야 합니다. 자체서명 인증서 경고가 뜨면 최초 1회 신뢰하세요.)")
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        print(f"브라우저 자동 실행 실패({e}). 위 URL을 직접 여세요.", file=sys.stderr)
+    return 0
+
+
 async def _ensure_valid_token(cfg: cfgmod.SeepageConfig, auth: AuthApi) -> str | None:
     """유효한 access_token을 반환한다. 만료됐으면 refresh_token으로 재발급
     시도 후 키체인을 갱신한다. 둘 다 실패하면 None(재로그인 필요)."""
@@ -282,7 +299,14 @@ async def cmd_run(args: argparse.Namespace) -> int:
             get_chat_workflow_id=lambda: cfg.chat_workflow_id,
         )
         tasks.append(asyncio.create_task(taskpane.run()))
-        print(f"태스크팬 로컬 서버: https://127.0.0.1:{taskpane.port}")
+        panel_url = f"https://127.0.0.1:{taskpane.port}/index.html"
+        print(f"채팅 패널: {panel_url}")
+        print("  (Excel 리본에 버튼이 안 뜨는 Office라도 이 URL을 브라우저로 열면 그대로 쓸 수 있습니다. `xgen-seepage panel`로도 열림.)")
+        if args.open_panel:
+            try:
+                webbrowser.open(panel_url)
+            except Exception:
+                pass
 
     print(f"{cfg.server_url} 에 연결합니다 (사용자 {cfg.username or user_id}). Ctrl+C로 종료.")
     try:
@@ -329,7 +353,16 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Excel 태스크팬용 로컬 HTTPS 서버를 띄우지 않는다(기본: 띄움)",
     )
+    run_p.add_argument(
+        "--open-panel",
+        action="store_true",
+        default=False,
+        help="시작하면서 채팅 패널을 기본 브라우저로 자동으로 연다",
+    )
     run_p.set_defaults(func=cmd_run)
+
+    panel_p = sub.add_parser("panel", help="채팅 패널을 기본 브라우저로 연다(run이 켜져 있어야 함)")
+    panel_p.set_defaults(func=cmd_panel)
 
     chat_wf_p = sub.add_parser(
         "chat-workflow", help="Excel 태스크팬 채팅을 연결할 XGEN 워크플로우 관리"

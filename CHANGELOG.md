@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.12.0 (2026-08-17)
+
+**`xgen-seepage panel` - 리본 버튼 없이도 채팅 패널을 무조건 열 수 있게.**
+Excel 리본 버튼(Office 애드인)은 Office 버전에 따라 안 뜰 수 있는데(구형
+볼륨 라이선스 등), office.js를 걷어내 패널이 순수 웹 UI가 됐으므로 브라우저로
+그냥 열면 그대로 쓸 수 있다. `xgen-seepage panel`(또는 `run --open-panel`)이
+패널을 기본 브라우저로 연다. `run`도 시작 시 패널 URL을 명확히 출력.
+즉 리본 surfacing은 Office에 달렸지만 패널 사용 자체는 어느 머신이든 보장.
+
+- `panel` 서브커맨드 + `run --open-panel` 추가. 얼린 exe에도 반영 확인.
+- README를 현재 상태로 갱신(채팅 패널·에이전트/모델 선택·서버 선택·panel).
+
 ## 0.11.1 (2026-08-17)
 
 **코어 검증: 별도 커넥터 프로세스가 "사용자가 연 Excel"을 실제로 편집.**

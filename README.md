@@ -8,18 +8,23 @@
 직접 로그인해서 붙는 **독립 실행 프로그램**이고(다른 앱 설치 불필요), 인터넷
 없이도 설치·운영 가능하다.
 
-- **로그인 한 번**(`xgen-seepage login`) → XGEN 서버·계정에 붙는다.
+- **로그인 한 번**(`xgen-seepage login`) → XGEN 서버·계정에 붙는다. 여러
+  XGEN(jeju/dev/prod)을 오갈 땐 로그인 시 써 본 서버 목록에서 고른다.
 - **`xgen-seepage run`을 상주**시키면, 사용자가 XGEN 어디서 어떤 에이전트와
   채팅하든 그 에이전트가 사용자 로컬 Excel/CSV를 도구로 쓸 수 있게 된다.
 - 지금 로컬 Excel에서 **열려 있는** 통합문서를 실시간으로 읽고 쓴다(수식 포함,
-  파일 저장 불필요. 사용자가 화면에서 바로 결과를 본다).
+  파일 저장 불필요. 사용자가 화면에서 바로 결과를 본다). **실측 확인**: 별도
+  프로세스로 도는 커넥터가 사용자가 연 통합문서를 찾아 에이전트가 셀을 실제로
+  바꾼다(`ARCHITECTURE.md` §11).
+- **Excel 안 채팅 패널**: `xgen-seepage panel`이 브라우저로 채팅 패널을 연다.
+  패널에서 **에이전트(워크플로우)와 모델(provider)을 골라** 채팅하면 그
+  에이전트가 열린 Excel을 편집한다. 이 패널은 office.js에 의존하지 않는 순수
+  웹 UI라 XGEN 로그인에만 의존한다(인터넷·Microsoft 애드인 인프라 불필요).
+  Office가 지원하면 Excel 리본 버튼으로도 띄울 수 있다(`taskpane/manifest.xml`).
 - **Excel이 없는 환경**(폐쇄망 등)에서도 LibreOffice로 xlsx를 직접 열어 같은
   셀 읽기/쓰기를 제공한다. 파일을 미리 열어둘 필요도 없다.
 - CSV는 인코딩/구분자를 자동 감지해 읽고 편집하며, 필요하면 Excel로 올려 같은
   라이브 경로로 넘어간다.
-- Office.js 태스크팬 애드인 방식(매니페스트 사이드로딩, 인증서 신뢰 설정)이
-  아니라 로컬 프로세스에 직접 붙는 방식이라, Excel/LibreOffice 쪽엔 설치할
-  게 없다.
 
 📦 자세한 아키텍처·설계 근거는 [ARCHITECTURE.md](ARCHITECTURE.md).
 
@@ -55,8 +60,10 @@ python -m PyInstaller --onefile --name xgen-seepage-connector `
 
 | 명령 | 설명 |
 |---|---|
-| `xgen-seepage login` | XGEN 서버에 로그인, 토큰을 OS 키체인에 저장 |
-| `xgen-seepage run` | 에이전트-도구 브릿지를 상주시킨다(포그라운드) |
+| `xgen-seepage login` | XGEN 서버에 로그인(써 본 서버 목록에서 선택), 토큰을 OS 키체인에 저장 |
+| `xgen-seepage run` | 에이전트-도구 브릿지 + 채팅 패널 로컬 서버를 상주시킨다(포그라운드). `--open-panel`로 패널 자동 열기 |
+| `xgen-seepage panel` | 채팅 패널을 기본 브라우저로 연다(`run`이 켜져 있어야 함) |
+| `xgen-seepage chat-workflow list`/`set` | 패널 기본 에이전트(워크플로우) 관리(패널 드롭다운으로도 선택 가능) |
 | `xgen-seepage status` | 현재 설정·토큰 유효성 확인 |
 | `xgen-seepage logout` | 저장된 토큰 삭제 |
 
