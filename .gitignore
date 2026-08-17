@@ -13,5 +13,6 @@ venv/
 htmlcov/
 *.log
 .env
-# 내부 작업 기록. 로컬엔 두되 공개 레포엔 올리지 않는다.
+# 내부 작업 기록·설계 노트. 로컬엔 두되 공개 레포엔 올리지 않는다.
 worklogs/
+ARCHITECTURE.md

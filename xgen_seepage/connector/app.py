@@ -357,7 +357,7 @@ async def cmd_install_excel_addin(args: argparse.Namespace) -> int:
         print(f"레지스트리 등록 실패: {result.stderr.strip()}", file=sys.stderr)
         return 1
     print("Excel 리본 애드인 설치 완료.")
-    print("Excel을 껐다 다시 켜면 홈 탭 오른쪽에 'XGEN > xgen-seepage 채팅' 버튼이 뜹니다.")
+    print("Excel을 껐다 다시 켜면 홈 탭 오른쪽 'XGEN' 그룹에 'xgen-seepage' 버튼이 뜹니다.")
     print("버튼을 누르면 채팅 패널이 열립니다(`xgen-seepage run`이 켜져 있어야 함).")
     print("제거: `xgen-seepage uninstall-excel-addin`")
     return 0

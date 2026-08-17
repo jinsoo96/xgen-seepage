@@ -16,50 +16,64 @@
 - **`xgen-seepage run`을 상주**시키면, 사용자가 XGEN 어디서 어떤 에이전트와
   채팅하든 그 에이전트가 사용자 로컬 Excel/CSV를 도구로 쓸 수 있게 된다.
 - 지금 로컬 Excel에서 **열려 있는** 통합문서를 실시간으로 읽고 쓴다(수식 포함,
-  파일 저장 불필요. 사용자가 화면에서 바로 결과를 본다). **실측 확인**: 별도
-  프로세스로 도는 커넥터가 사용자가 연 통합문서를 찾아 에이전트가 셀을 실제로
-  바꾼다(`ARCHITECTURE.md` §11).
+  파일 저장 불필요. 사용자가 화면에서 바로 결과를 본다). 별도 프로세스로 도는
+  커넥터가 사용자가 연 통합문서를 찾아 에이전트가 셀을 실제로 바꾼다.
 - **Excel 안 채팅 패널**: `xgen-seepage panel`이 브라우저로 채팅 패널을 연다.
   패널에서 **에이전트(워크플로우)와 모델(provider)을 골라** 채팅하면 그
   에이전트가 열린 Excel을 편집한다. 이 패널은 office.js에 의존하지 않는 순수
   웹 UI라 XGEN 로그인에만 의존한다(인터넷·Microsoft 애드인 인프라 불필요).
   Excel 리본 버튼으로도 띄울 수 있다 - `xgen-seepage install-excel-addin`
-  한 번이면 홈 탭에 "XGEN 채팅" 버튼이 뜬다(**폐쇄망 OK**, Microsoft 클라우드
-  불필요한 로컬 레지스트리 사이드로드).
+  한 번이면 홈 탭 "XGEN" 그룹에 "xgen-seepage" 버튼이 뜬다(**폐쇄망 OK**,
+  Microsoft 클라우드 불필요한 로컬 레지스트리 사이드로드).
 - **Excel이 없는 환경**(폐쇄망 등)에서도 LibreOffice로 xlsx를 직접 열어 같은
   셀 읽기/쓰기를 제공한다. 파일을 미리 열어둘 필요도 없다.
 - CSV는 인코딩/구분자를 자동 감지해 읽고 편집하며, 필요하면 Excel로 올려 같은
   라이브 경로로 넘어간다.
 
-📦 자세한 아키텍처·설계 근거는 [ARCHITECTURE.md](ARCHITECTURE.md).
-
 ## 설치 & 사용
 
-**개발/테스트용 (인터넷 있는 환경):**
+**필요한 것**: Python 3.10+. 열려 있는 Excel을 실시간 편집하려면 Windows/macOS +
+로컬 Excel. Excel이 없어도 CSV와 (LibreOffice가 있으면) xlsx 편집은 된다.
+인터넷은 설치 때만 필요하고, 운영은 XGEN 서버 연결만 있으면 된다(폐쇄망 OK).
+
+**어느 머신에서든 설치 (GitHub에서 바로):**
 
 ```bash
-pip install "xgen-seepage[live]"   # 라이브(열려 있는 통합문서) 편집 포함
-xgen-seepage login                 # XGEN 서버 URL + 계정 (대화형 프롬프트)
-xgen-seepage run                   # 브릿지 상주 시작 (Ctrl+C로 종료)
+# 라이브(열려 있는 통합문서) 편집까지: [live], CSV만 쓰면 뒤의 [live] 없이
+pip install "xgen-seepage[live] @ git+https://github.com/jinsoo96/xgen-seepage.git"
+
+xgen-seepage login    # XGEN 서버 URL + 계정 (여러 서버는 목록에서 선택)
+xgen-seepage run      # 에이전트-도구 브릿지 + 채팅 패널 상주 (Ctrl+C로 종료)
 ```
 
-**폐쇄망용 (단일 설치파일):** `packaging/` 아래에 PyInstaller 빌드 레시피가
-있다. 인터넷 있는 머신에서 미리 얼려서 `xgen-seepage-connector.exe` 하나로
-만든 뒤, 그 실행파일만 폐쇄망에 반입한다.
+`run`이 떠 있으면, XGEN 어디서(웹 UI 등) 어떤 에이전트와 채팅하든 그 에이전트가
+이 머신의 Excel/CSV를 도구로 쓴다. Excel 안에서 바로 쓰려면:
+
+```bash
+xgen-seepage install-excel-addin   # Excel 홈 탭 "XGEN" 그룹에 버튼 설치(폐쇄망 OK)
+# 또는 리본 버튼 없이 브라우저로:
+xgen-seepage panel                 # 채팅 패널을 기본 브라우저로 연다
+```
+
+**여러 XGEN(jeju/dev/prod)을 오갈 때**: `login` 때 써 본 서버 목록에서 고르고,
+토큰은 서버별로 저장된다. `xgen-seepage server list`로 확인하고 `server use`로
+전환한다(그 서버에 토큰이 있으면 재로그인 없이). 지금 붙은 서버·계정은 패널
+헤더와 `xgen-seepage status`에서 확인된다.
+
+**폐쇄망용 (단일 설치파일, 인터넷 없는 머신)**: 인터넷 있는 머신에서 미리 하나로
+얼려서 `xgen-seepage-connector.exe`만 반입한다. 파이썬이 없는 Windows에서도 그대로
+실행된다(`.exe login`/`run`/`status`/`server list`/`logout`).
 
 ```powershell
-pip install -e ".[dev]"
-python -m PyInstaller --onefile --name xgen-seepage-connector `
-  --collect-all keyring packaging/run_connector.py
+git clone https://github.com/jinsoo96/xgen-seepage.git
+cd xgen-seepage
+pip install -e ".[build]"
+python -m PyInstaller packaging/xgen-seepage-connector.spec
+# 산출물: packaging/dist/xgen-seepage-connector.exe
 ```
 
-빌드 산출물(`packaging/dist/xgen-seepage-connector.exe`)은 어떤 파이썬도
-설치돼 있지 않은 Windows 머신에서 그대로 실행된다. `.exe login` /
-`.exe run` / `.exe status` / `.exe logout`.
-
-**비대화형 배포**(대량 설치 시 로그인을 스크립트로): 환경변수
-`XGEN_SEEPAGE_SERVER_URL` / `XGEN_SEEPAGE_EMAIL` / `XGEN_SEEPAGE_PASSWORD`로
-`login`을 자동화할 수 있다.
+**비대화형/대량 설치**(로그인을 스크립트로): 환경변수 `XGEN_SEEPAGE_SERVER_URL` /
+`XGEN_SEEPAGE_EMAIL` / `XGEN_SEEPAGE_PASSWORD`로 `login`을 자동화할 수 있다.
 
 ## CLI
 

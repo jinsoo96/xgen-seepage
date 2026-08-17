@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.14.1 (2026-08-17)
+
+**설치 안내 + 리본 버튼 브랜딩.**
+
+- README에 "어느 머신에서든 설치" 가이드 추가(GitHub에서 바로 pip install,
+  login/run/install-excel-addin/panel, 서버 전환, 폐쇄망 exe 빌드). 다른
+  서버에도 바로 따라 설치할 수 있게 자립형으로.
+- 리본 버튼 아이콘을 XGEN 로고로, 라벨을 "xgen-seepage 채팅" -> "xgen-seepage"로.
+  매니페스트 Version/Id를 올려 Office가 캐시를 버리고 새로 읽게 함(라벨/아이콘을
+  바꾸면 Version을 올려야 반영됨).
+- 내부 설계노트 `ARCHITECTURE.md`는 공개 레포에서 빼고 로컬 보존(gitignore).
+
 ## 0.14.0 (2026-08-17)
 
 **서버 전환(jeju/dev/prod) + 403 Forbidden을 실행 가능한 안내로.** 여러

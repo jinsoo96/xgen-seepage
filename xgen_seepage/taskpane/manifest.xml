@@ -5,8 +5,10 @@
   xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
   xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
   xsi:type="TaskPaneApp">
-  <Id>b6f2a6b4-6f2a-4b2a-9c2a-8f2a6b4f2a6b</Id>
-  <Version>1.0.0.0</Version>
+  <Id>7d1c4e9a-3b62-4f18-9a7d-2c8f5b0e6a41</Id>
+  <!-- 라벨/아이콘을 바꾸면 이 Version을 올려야 Office가 캐시를 버리고 다시
+       읽는다(Office는 매니페스트를 Id+Version으로 캐싱한다). -->
+  <Version>1.0.1.0</Version>
   <ProviderName>jinsoo96</ProviderName>
   <DefaultLocale>ko-KR</DefaultLocale>
   <DisplayName DefaultValue="xgen-seepage" />
@@ -71,7 +73,7 @@
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Group.Label" DefaultValue="XGEN" />
-        <bt:String id="Button.Label" DefaultValue="xgen-seepage 채팅" />
+        <bt:String id="Button.Label" DefaultValue="xgen-seepage" />
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="Button.Tooltip" DefaultValue="XGEN 에이전트와 채팅하며 이 통합문서를 편집합니다" />
