@@ -44,6 +44,30 @@ async def _health(_request: Request) -> JSONResponse:
     return JSONResponse({"ok": True, "service": "xgen-seepage-taskpane"})
 
 
+def _friendly_xgen_error(e: ApiError) -> JSONResponse:
+    """XGEN이 준 에러 상태 코드를 패널에 실행 가능한 한국어 메시지로 바꿔
+    준다. 특히 403은 토큰 문제가 아니라 **권한 문제**다(게이트웨이가 JWT로
+    권한을 판정, 참고 xgen-connector PROTOCOL.md) - 재로그인해도 안 풀리니
+    서버/계정을 확인하라고 정확히 알려준다. 그냥 "403"만 뜨면 사용자가 뭘
+    해야 할지 알 수 없다."""
+    if e.status == 403:
+        message = (
+            "이 계정은 이 서버에서 워크플로우(에이전트) 접근 권한이 없습니다"
+            "(403 Forbidden). 재로그인해도 안 풀립니다 - 권한이 아니라 계정/서버 "
+            "문제입니다. 권한 있는 계정인지, 지금 붙은 XGEN 서버(jeju/dev/prod)가 "
+            "맞는지 확인하세요. 터미널에서 `xgen-seepage status`(권한 확인) / "
+            "`xgen-seepage server list`(서버 확인·전환)."
+        )
+    elif e.status == 401:
+        message = "로그인이 만료됐습니다(401). 터미널에서 `xgen-seepage login`으로 다시 로그인하세요."
+    else:
+        message = f"XGEN 서버 오류({e.status})."
+    return JSONResponse(
+        {"error": "xgen_error", "status": e.status, "message": message, "detail": e.body},
+        status_code=e.status,
+    )
+
+
 class _ChatApiHandler:
     """`/workflows`(에이전트 목록)와 `/chat/stream`(선택한 에이전트 실행)
     라우트 본체. 클로저 대신 클래스로 둔 이유는 `TaskpaneServer`가 가진
@@ -59,16 +83,25 @@ class _ChatApiHandler:
         get_token: TokenProvider,
         agentflow: AgentflowApi,
         get_chat_workflow_id: Callable[[], str],
+        get_server_info: Callable[[], tuple[str, str]] | None = None,
     ) -> None:
         self._get_token = get_token
         self._agentflow = agentflow
         self._get_chat_workflow_id = get_chat_workflow_id
+        self._get_server_info = get_server_info or (lambda: ("", ""))
 
     async def _authed(self) -> str | None:
         token = await self._get_token()
         if token is not None:
             self._agentflow.set_token(token)
         return token
+
+    async def server_info(self, _request: Request):
+        """패널이 지금 붙은 XGEN 서버와 로그인 계정을 보여주기 위한 정보.
+        어느 서버에 붙었는지 안 보이면 "왜 403이지?"를 진단할 수 없다 -
+        엉뚱한 서버(prod 대신 jeju 등)에 붙어 있는 걸 눈으로 잡게 한다."""
+        server_url, username = self._get_server_info()
+        return JSONResponse({"server_url": server_url, "username": username})
 
     async def list_providers(self, _request: Request):
         """패널의 provider/model 드롭다운이 채우는 목록. 어느 provider의
@@ -82,7 +115,7 @@ class _ChatApiHandler:
         try:
             providers = await self._agentflow.list_providers()
         except ApiError as e:
-            return JSONResponse({"error": "xgen_error", "detail": e.body}, status_code=e.status)
+            return _friendly_xgen_error(e)
         return JSONResponse(
             {"providers": [{"provider": p.provider, "default_model": p.default_model} for p in providers]}
         )
@@ -101,7 +134,7 @@ class _ChatApiHandler:
         try:
             workflows = await self._agentflow.list_workflows()
         except ApiError as e:
-            return JSONResponse({"error": "xgen_error", "detail": e.body}, status_code=e.status)
+            return _friendly_xgen_error(e)
         return JSONResponse(
             {
                 "workflows": [
@@ -158,9 +191,7 @@ class _ChatApiHandler:
         except StopAsyncIteration:
             first_chunk = b""
         except ApiError as e:
-            return JSONResponse(
-                {"error": "xgen_error", "status": e.status, "detail": e.body}, status_code=e.status
-            )
+            return _friendly_xgen_error(e)
 
         async def _combined():
             if first_chunk:
@@ -176,6 +207,7 @@ def _build_app(chat_handler: _ChatApiHandler | None) -> Starlette:
         Route("/health", _health),
     ]
     if chat_handler is not None:
+        routes.append(Route("/server", chat_handler.server_info, methods=["GET"]))
         routes.append(Route("/workflows", chat_handler.list_workflows, methods=["GET"]))
         routes.append(Route("/providers", chat_handler.list_providers, methods=["GET"]))
         routes.append(Route("/chat/stream", chat_handler.chat_stream, methods=["POST"]))
@@ -201,6 +233,7 @@ class TaskpaneServer:
         allow_private_certificate: bool = False,
         get_token: TokenProvider | None = None,
         get_chat_workflow_id: Callable[[], str] | None = None,
+        get_server_info: Callable[[], tuple[str, str]] | None = None,
     ) -> None:
         chat_handler = None
         self._chat_http: HttpClient | None = None
@@ -213,6 +246,7 @@ class TaskpaneServer:
                 get_token=get_token,
                 agentflow=AgentflowApi(self._chat_http),
                 get_chat_workflow_id=get_chat_workflow_id or (lambda: ""),
+                get_server_info=get_server_info,
             )
 
         app = _build_app(chat_handler)

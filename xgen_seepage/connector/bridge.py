@@ -87,7 +87,7 @@ class ConnectorMcpBridge:
         """접속을 유지하며 끊기면 지수 백오프로 재접속한다. stop()이
         호출될 때까지 반환하지 않는다. 호출자가 태스크로 감싸 실행한다."""
         self._stopped = False
-        backoff = RECONNECT_MIN_SECONDS
+        backoff: float = RECONNECT_MIN_SECONDS
         while not self._stopped:
             try:
                 await self._connect_once(server_url, user_id)
@@ -166,9 +166,9 @@ class ConnectorMcpBridge:
         ]
         await ws.send(json.dumps({"type": "hello", "catalog_id": catalog_id, "tools": tools}))
 
-    async def _on_message(self, ws: Any, raw: str) -> None:
+    async def _on_message(self, ws: Any, raw: str | bytes) -> None:
         try:
-            msg = json.loads(raw)
+            msg = json.loads(raw)  # json.loads는 str/bytes 둘 다 받는다
         except json.JSONDecodeError:
             return
         kind = msg.get("type")

@@ -194,11 +194,20 @@ class AgentflowApi:
         loaded`의 해법임을 확인했다: provider가 비면 서버 기본값(안 떠 있는
         vLLM)으로 떨어져 죽는데, `provider=anthropic`을 주입하니 에이전트가
         실제로 도구를 호출하고 열린 Excel의 셀을 바꿨다."""
+        # 바디 필드는 xgen-connector `src/core/chat.ts`의 실행 요청과 같은 모양을
+        # 따른다(참고 전용, NOTICE 참조). include_tool_events를 켜야 에이전트가
+        # 도구를 호출할 때 패널에 "[도구 호출] set_live_cell" 같은 이벤트가 뜬다
+        # (사용자가 셀 편집이 실제로 일어나는 걸 눈으로 본다).
         body: dict[str, Any] = {
             "workflow_id": workflow_id,
             "workflow_name": workflow_name,
             "input_data": input_data,
             "interaction_id": interaction_id,
+            "selected_collections": [],
+            "selected_files": [],
+            "include_logs": True,
+            "include_node_status": True,
+            "include_tool_events": True,
             "response_format": "stream",
         }
         if provider:

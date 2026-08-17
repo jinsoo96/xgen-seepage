@@ -49,7 +49,7 @@ xgen-connector 앱 → **Settings → 로컬 MCP** → 서버 추가:
 저장하면 `mcp-manager`가 이 프로세스를 스폰해 도구 카탈로그를 모으고,
 `mcp-bridge`가 XGEN 백엔드에 `hello` 프레임으로 알린다. 이후 로그인한 계정으로
 어떤 XGEN 에이전트(`agent_xgen`/`agent_harness`/`agent_geny`)와 채팅해도 아래
-14개 도구가 자동으로 주어진다.
+도구들(Excel 라이브/LibreOffice/CSV, 총 24개)이 자동으로 주어진다.
 
 ## 4. 실제 사용 흐름 예시
 

@@ -5,6 +5,7 @@
    DOM 로드 시점에 바로 뜬다. */
 
 const statusEl = document.getElementById("status");
+const serverInfoEl = document.getElementById("serverinfo");
 const messagesEl = document.getElementById("messages");
 const form = document.getElementById("composer");
 const input = document.getElementById("input");
@@ -88,6 +89,22 @@ async function loadProviders() {
   }
 }
 
+/** 지금 붙은 XGEN 서버와 로그인 계정을 헤더에 보여준다. 엉뚱한 서버(jeju
+ * 대신 prod 등)에 붙어 403이 나는 상황을, 사용자가 눈으로 바로 잡게 한다. */
+async function loadServerInfo() {
+  try {
+    const resp = await fetch("/server");
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.server_url) {
+      const who = data.username ? ` · ${data.username}` : "";
+      serverInfoEl.textContent = `${data.server_url}${who}`;
+    }
+  } catch (e) {
+    /* 서버 정보 실패는 치명적이지 않다 */
+  }
+}
+
 async function init() {
   input.disabled = false;
   sendBtn.disabled = false;
@@ -102,6 +119,7 @@ async function init() {
   } catch (e) {
     setStatus(`커넥터에 연결할 수 없습니다. \`xgen-seepage run\`이 켜져 있는지 확인하세요.`, "error");
   }
+  loadServerInfo();
   loadAgents();
   loadProviders();
 }

@@ -99,12 +99,37 @@ class KeyringUnavailableError(RuntimeError):
     """
 
 
-def get_access_token() -> str | None:
-    return _get_quietly(_KEY_ACCESS)
+# 토큰은 서버 URL별로 따로 저장한다. 여러 XGEN(jeju/dev/prod)을 오갈 때
+# 한 슬롯을 덮어쓰면, 활성 서버는 B인데 키체인엔 A의 토큰이 남아 B에 A
+# 토큰을 보내 403이 나는 사고가 생긴다(실측). 서버별로 키를 나눠 그 불일치
+# 자체가 생기지 않게 한다. 키 형식: "access_token::<server_url>".
+def _norm_server(server_url: str) -> str:
+    return (server_url or "").strip().rstrip("/")
 
 
-def get_refresh_token() -> str | None:
-    return _get_quietly(_KEY_REFRESH)
+def _access_key(server_url: str) -> str:
+    return f"{_KEY_ACCESS}::{_norm_server(server_url)}"
+
+
+def _refresh_key(server_url: str) -> str:
+    return f"{_KEY_REFRESH}::{_norm_server(server_url)}"
+
+
+def get_access_token(server_url: str) -> str | None:
+    v = _get_quietly(_access_key(server_url))
+    if v is None:
+        # 예전 버전은 서버 구분 없이 단일 슬롯에 저장했다. 그 토큰을 현재
+        # 서버 것으로 간주해 읽어 준다(다음 login/set_tokens에서 서버별
+        # 슬롯으로 옮겨가고 레거시 슬롯은 지운다).
+        return _get_quietly(_KEY_ACCESS)
+    return v
+
+
+def get_refresh_token(server_url: str) -> str | None:
+    v = _get_quietly(_refresh_key(server_url))
+    if v is None:
+        return _get_quietly(_KEY_REFRESH)
+    return v
 
 
 def _get_quietly(key: str) -> str | None:
@@ -115,16 +140,19 @@ def _get_quietly(key: str) -> str | None:
         return None
 
 
-def set_tokens(access_token: str | None, refresh_token: str | None) -> None:
+def set_tokens(server_url: str, access_token: str | None, refresh_token: str | None) -> None:
     try:
         if access_token:
-            keyring.set_password(_SERVICE, _KEY_ACCESS, access_token)
+            keyring.set_password(_SERVICE, _access_key(server_url), access_token)
         else:
-            _delete_quietly(_KEY_ACCESS)
+            _delete_quietly(_access_key(server_url))
         if refresh_token:
-            keyring.set_password(_SERVICE, _KEY_REFRESH, refresh_token)
+            keyring.set_password(_SERVICE, _refresh_key(server_url), refresh_token)
         else:
-            _delete_quietly(_KEY_REFRESH)
+            _delete_quietly(_refresh_key(server_url))
+        # 서버별 슬롯에 확실히 옮겨 담았으니 레거시 단일 슬롯은 정리한다.
+        _delete_quietly(_KEY_ACCESS)
+        _delete_quietly(_KEY_REFRESH)
     except Exception as e:
         raise KeyringUnavailableError(
             "OS 키체인에 토큰을 저장하지 못했습니다. 대화형 로그인 세션이 아닌 "
@@ -134,7 +162,18 @@ def set_tokens(access_token: str | None, refresh_token: str | None) -> None:
         ) from e
 
 
-def clear_tokens() -> None:
+def has_token(server_url: str) -> bool:
+    """이 서버에 저장된 access token이 있는가(레거시 단일 슬롯 폴백 없이,
+    이 서버 슬롯만 본다). 서버 목록에서 '토큰 있음/없음'을 정확히 보여줄 때
+    쓴다 - get_access_token은 마이그레이션용 레거시 폴백이 있어 여러 서버가
+    다 '있음'으로 보일 수 있다."""
+    return _get_quietly(_access_key(server_url)) is not None
+
+
+def clear_tokens(server_url: str) -> None:
+    _delete_quietly(_access_key(server_url))
+    _delete_quietly(_refresh_key(server_url))
+    # 레거시 단일 슬롯도 같이 정리(마이그레이션 잔재 방지).
     _delete_quietly(_KEY_ACCESS)
     _delete_quietly(_KEY_REFRESH)
 

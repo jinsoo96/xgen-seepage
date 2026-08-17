@@ -96,6 +96,14 @@ async def cmd_login(args: argparse.Namespace) -> int:
     finally:
         await http.aclose()
 
+    # 토큰을 먼저 저장한다(서버별 슬롯). 저장에 실패하면 config의 활성
+    # 서버를 바꾸지 않고 끝낸다 - 그래야 "활성 서버는 B인데 토큰은 없음/A의
+    # 것"인 어긋난 상태가 남지 않는다.
+    try:
+        cfgmod.set_tokens(server_url, result.access_token, result.refresh_token)
+    except cfgmod.KeyringUnavailableError as e:
+        print(f"로그인 자체는 성공했지만 토큰 저장에 실패했습니다: {e}", file=sys.stderr)
+        return 1
     # 방금 로그인한 서버를 known_servers 맨 앞에 넣어 다음 login 때 목록에 뜨게.
     known = [server_url] + [s for s in existing.known_servers if s != server_url]
     cfg = cfgmod.SeepageConfig(
@@ -108,17 +116,13 @@ async def cmd_login(args: argparse.Namespace) -> int:
         known_servers=known,
     )
     cfgmod.save_config(cfg)
-    try:
-        cfgmod.set_tokens(result.access_token, result.refresh_token)
-    except cfgmod.KeyringUnavailableError as e:
-        print(f"로그인 자체는 성공했지만 토큰 저장에 실패했습니다: {e}", file=sys.stderr)
-        return 1
     print(f"로그인 성공: {result.username} ({server_url})")
     return 0
 
 
 async def cmd_logout(_args: argparse.Namespace) -> int:
-    cfgmod.clear_tokens()
+    cfg = cfgmod.load_config()
+    cfgmod.clear_tokens(cfg.server_url)
     print("로그아웃했습니다(토큰 삭제). 설정 파일(server_url 등)은 유지됩니다.")
     return 0
 
@@ -128,7 +132,7 @@ async def cmd_status(_args: argparse.Namespace) -> int:
     if not cfg.server_url:
         print("설정된 서버가 없습니다. `xgen-seepage login`을 먼저 실행하세요.")
         return 1
-    access = cfgmod.get_access_token()
+    access = cfgmod.get_access_token(cfg.server_url)
     print(f"서버: {cfg.server_url}")
     print(f"사용자: {cfg.username or '(미상)'} ({cfg.user_id or '?'})")
     if not access:
@@ -137,7 +141,7 @@ async def cmd_status(_args: argparse.Namespace) -> int:
     http = HttpClient(cfg.server_url, allow_private_certificate=cfg.allow_private_certificate)
     auth = AuthApi(http)
     try:
-        user, _ = await auth.validate(access, cfgmod.get_refresh_token())
+        user, _ = await auth.validate(access, cfgmod.get_refresh_token(cfg.server_url))
     except ApiError as e:
         print(f"검증 실패: {e}")
         return 1
@@ -146,7 +150,96 @@ async def cmd_status(_args: argparse.Namespace) -> int:
     if user is None:
         print("토큰 만료/무효. `xgen-seepage login` 다시 필요")
         return 1
-    print(f"토큰 유효. 역할: {user.roles}, 권한 {len(user.permissions)}개")
+    print(f"토큰 유효. 슈퍼유저: {user.is_superuser}, 역할: {user.roles}, 권한 {len(user.permissions)}개")
+    # 403의 실제 원인을 미리 알려준다: 워크플로우(에이전트) 조회/실행은
+    # 게이트웨이가 이 계정의 권한으로 판정하며, 권한이 없으면 401이 아니라
+    # 403 Forbidden으로 막힌다. 슈퍼유저가 아니고 agentflow 권한도 없으면
+    # 그 서버에선 패널이 에이전트 목록을 못 불러오거나 실행이 막힌다.
+    if not user.is_superuser and not _has_agentflow_access(user.permissions):
+        print(
+            "  주의: 이 계정은 이 서버에서 워크플로우(에이전트) 접근 권한이 없어 보입니다"
+            "(agentflow read 권한 없음). 패널에서 403 Forbidden이 날 수 있습니다 - "
+            "권한 있는 계정으로 로그인하거나(다른 서버면 `xgen-seepage server use`), "
+            "관리자에게 권한을 요청하세요."
+        )
+    if len(cfg.known_servers) > 1:
+        print(f"로그인해 본 서버 {len(cfg.known_servers)}개: `xgen-seepage server list`로 확인/전환")
+    return 0
+
+
+def _has_agentflow_access(permissions: list[str]) -> bool:
+    """워크플로우(에이전트) 조회/실행에 필요한 권한을 갖고 있는가. XGEN
+    게이트웨이가 요구하는 권한 이름 기준(참고: xgen-connector PROTOCOL.md의
+    `main.agentflow:read`). 권한 표기가 서버 버전마다 조금씩 달라 넉넉히 매칭한다."""
+    return any("agentflow" in p for p in permissions)
+
+
+async def cmd_server_list(_args: argparse.Namespace) -> int:
+    """지금까지 로그인해 본 XGEN 서버(jeju/dev/prod 등)와 각 서버의 토큰
+    보유 여부를 보여준다. `server use`로 재타이핑 없이 전환한다."""
+    cfg = cfgmod.load_config()
+    servers = list(cfg.known_servers) or ([cfg.server_url] if cfg.server_url else [])
+    if not servers:
+        print("로그인해 본 서버가 없습니다. `xgen-seepage login`부터 하세요.")
+        return 0
+    for i, url in enumerate(servers, 1):
+        marks = []
+        if url == cfg.server_url:
+            marks.append("현재")
+        marks.append("토큰 있음" if cfgmod.has_token(url) else "토큰 없음")
+        print(f"  {i}. {url}  [{', '.join(marks)}]")
+    print("\n전환: `xgen-seepage server use <번호|URL>` (토큰 없으면 login 필요)")
+    print("`run`이 떠 있으면 서버를 바꾼 뒤 재시작해야 반영됩니다.")
+    return 0
+
+
+async def cmd_server_use(args: argparse.Namespace) -> int:
+    """활성 XGEN 서버를 바꾼다. 그 서버에 유효한 토큰이 이미 있으면 비밀번호
+    없이 바로 전환하고, 없으면 `login`을 안내한다. xgen-connector처럼 서버
+    전환은 계정 공간 전환이라, 토큰은 서버별로 분리해 둔다(한 서버 토큰이
+    다른 서버로 새어 403이 나지 않게)."""
+    cfg = cfgmod.load_config()
+    servers = list(cfg.known_servers) or ([cfg.server_url] if cfg.server_url else [])
+    target = (args.server or "").strip()
+    if target.isdigit() and servers:
+        n = int(target)
+        if 1 <= n <= len(servers):
+            target = servers[n - 1]
+    target = target.rstrip("/")
+    if not target:
+        print("전환할 서버 URL 또는 번호를 지정하세요. `xgen-seepage server list`로 확인.", file=sys.stderr)
+        return 1
+
+    known = [target] + [s for s in servers if s != target]
+    if not cfgmod.has_token(target):
+        cfg.server_url = target
+        cfg.known_servers = known
+        cfgmod.save_config(cfg)
+        print(f"활성 서버를 {target}로 바꿨습니다. 이 서버엔 저장된 토큰이 없으니 `xgen-seepage login` 하세요.")
+        return 0
+
+    # 저장된 토큰이 있으면 검증해서 이 서버 기준의 user_id/username으로 갱신한다
+    # (서버마다 사용자 식별자가 다르므로, 브릿지 ws url에 옛 서버 user_id를
+    # 쓰면 안 된다).
+    cfg.server_url = target
+    cfg.known_servers = known
+    http = HttpClient(target, allow_private_certificate=cfg.allow_private_certificate)
+    auth = AuthApi(http)
+    try:
+        token = await _ensure_valid_token(cfg, auth)
+        if token is None:
+            cfgmod.save_config(cfg)
+            print(f"활성 서버를 {target}로 바꿨지만 저장된 토큰이 만료됐습니다. `xgen-seepage login` 하세요.")
+            return 0
+        user, _ = await auth.validate(token, cfgmod.get_refresh_token(target))
+        if user is not None:
+            cfg.user_id = user.user_id or cfg.user_id
+            cfg.username = user.username or cfg.username
+        cfgmod.save_config(cfg)
+    finally:
+        await http.aclose()
+    print(f"활성 서버를 {target}로 바꿨습니다(저장된 토큰 유효, 사용자 {cfg.username}).")
+    print("`run`이 떠 있으면 재시작해야 반영됩니다.")
     return 0
 
 
@@ -299,10 +392,10 @@ async def cmd_panel(_args: argparse.Namespace) -> int:
 async def _ensure_valid_token(cfg: cfgmod.SeepageConfig, auth: AuthApi) -> str | None:
     """유효한 access_token을 반환한다. 만료됐으면 refresh_token으로 재발급
     시도 후 키체인을 갱신한다. 둘 다 실패하면 None(재로그인 필요)."""
-    access = cfgmod.get_access_token()
+    access = cfgmod.get_access_token(cfg.server_url)
     if not access:
         return None
-    refresh_token = cfgmod.get_refresh_token()
+    refresh_token = cfgmod.get_refresh_token(cfg.server_url)
     try:
         user, new_access = await auth.validate(access, refresh_token)
     except ApiError:
@@ -310,7 +403,7 @@ async def _ensure_valid_token(cfg: cfgmod.SeepageConfig, auth: AuthApi) -> str |
     if user is not None:
         return access
     if new_access:
-        cfgmod.set_tokens(new_access, refresh_token)
+        cfgmod.set_tokens(cfg.server_url, new_access, refresh_token)
         return new_access
     if refresh_token:
         try:
@@ -318,7 +411,7 @@ async def _ensure_valid_token(cfg: cfgmod.SeepageConfig, auth: AuthApi) -> str |
         except ApiError:
             refreshed = None
         if refreshed:
-            cfgmod.set_tokens(refreshed, refresh_token)
+            cfgmod.set_tokens(cfg.server_url, refreshed, refresh_token)
             return refreshed
     return None
 
@@ -364,6 +457,7 @@ async def cmd_run(args: argparse.Namespace) -> int:
             allow_private_certificate=cfg.allow_private_certificate,
             get_token=get_token,
             get_chat_workflow_id=lambda: cfg.chat_workflow_id,
+            get_server_info=lambda: (cfg.server_url, cfg.username or ""),
         )
         tasks.append(asyncio.create_task(taskpane.run()))
         panel_url = f"https://127.0.0.1:{taskpane.port}/index.html"
@@ -451,6 +545,16 @@ def build_parser() -> argparse.ArgumentParser:
     chat_wf_set_p = chat_wf_sub.add_parser("set", help="태스크팬 채팅을 특정 워크플로우에 연결")
     chat_wf_set_p.add_argument("workflow_id", help="`chat-workflow list`에서 확인한 workflow_id")
     chat_wf_set_p.set_defaults(func=cmd_chat_workflow_set)
+
+    server_p = sub.add_parser("server", help="활성 XGEN 서버(jeju/dev/prod 등) 확인/전환")
+    server_sub = server_p.add_subparsers(dest="server_command", required=True)
+
+    server_list_p = server_sub.add_parser("list", help="로그인해 본 서버 목록과 토큰 보유 여부")
+    server_list_p.set_defaults(func=cmd_server_list)
+
+    server_use_p = server_sub.add_parser("use", help="활성 서버를 바꾼다(토큰 있으면 재로그인 불필요)")
+    server_use_p.add_argument("server", help="서버 URL 또는 `server list`의 번호")
+    server_use_p.set_defaults(func=cmd_server_use)
 
     return p
 

@@ -14,6 +14,17 @@ body {
 }
 .status.ready { background: #e6f7e6; }
 .status.error { background: #fdecea; color: #a33; }
+.serverinfo {
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #789;
+  background: #f7f9fc;
+  border-bottom: 1px solid #eee;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.serverinfo:empty { display: none; }
 .agentbar {
   display: flex;
   align-items: center;

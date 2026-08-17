@@ -9,7 +9,10 @@
 없이도 설치·운영 가능하다.
 
 - **로그인 한 번**(`xgen-seepage login`) → XGEN 서버·계정에 붙는다. 여러
-  XGEN(jeju/dev/prod)을 오갈 땐 로그인 시 써 본 서버 목록에서 고른다.
+  XGEN(jeju/dev/prod)을 오갈 땐 로그인 시 써 본 서버 목록에서 고르고, 토큰은
+  서버별로 따로 저장한다(`xgen-seepage server use`로 재로그인 없이 전환).
+  패널·`status`가 지금 붙은 서버와 계정을 보여줘, 권한 부족으로 나는 403을
+  "엉뚱한 서버·계정" 문제로 바로 진단할 수 있다.
 - **`xgen-seepage run`을 상주**시키면, 사용자가 XGEN 어디서 어떤 에이전트와
   채팅하든 그 에이전트가 사용자 로컬 Excel/CSV를 도구로 쓸 수 있게 된다.
 - 지금 로컬 Excel에서 **열려 있는** 통합문서를 실시간으로 읽고 쓴다(수식 포함,
@@ -62,12 +65,13 @@ python -m PyInstaller --onefile --name xgen-seepage-connector `
 
 | 명령 | 설명 |
 |---|---|
-| `xgen-seepage login` | XGEN 서버에 로그인(써 본 서버 목록에서 선택), 토큰을 OS 키체인에 저장 |
+| `xgen-seepage login` | XGEN 서버에 로그인(써 본 서버 목록에서 선택), 토큰을 서버별로 OS 키체인에 저장 |
 | `xgen-seepage run` | 에이전트-도구 브릿지 + 채팅 패널 로컬 서버를 상주시킨다(포그라운드). `--open-panel`로 패널 자동 열기 |
+| `xgen-seepage server list`/`use` | 여러 XGEN(jeju/dev/prod) 확인·전환. 그 서버에 토큰이 이미 있으면 재로그인 없이 전환 |
 | `xgen-seepage panel` | 채팅 패널을 기본 브라우저로 연다(`run`이 켜져 있어야 함) |
 | `xgen-seepage install-excel-addin` | Excel 리본에 XGEN 채팅 버튼 설치(**폐쇄망 OK**, 클라우드 불필요). `uninstall-excel-addin`으로 제거 |
 | `xgen-seepage chat-workflow list`/`set` | 패널 기본 에이전트(워크플로우) 관리(패널 드롭다운으로도 선택 가능) |
-| `xgen-seepage status` | 현재 설정·토큰 유효성 확인 |
+| `xgen-seepage status` | 현재 설정·토큰 유효성·권한 확인(권한이 없으면 패널에서 403이 날 수 있음을 미리 알려줌) |
 | `xgen-seepage logout` | 저장된 토큰 삭제 |
 
 ## 파이썬 API. 직접 라이브 편집
@@ -168,13 +172,9 @@ python -m xgen_seepage.mcp_server
 python -m venv .venv
 .venv/Scripts/activate       # Windows
 pip install -e ".[live,dev]"
-pytest tests/ -v
-ruff check xgen_seepage/ tests/
+ruff check xgen_seepage/
+mypy xgen_seepage/
 ```
-
-43개 단위/통합 테스트(인코딩·셀 편집 왕복, MCP dispatcher, 로그인+WS 브릿지
-전체 왕복). Excel/LibreOffice가 실제로 열린 상태에서의 셀 IO는 두 애플리케이션이
-설치된 머신에서 별도 검증이 필요하다.
 
 ## 라이선스
 
