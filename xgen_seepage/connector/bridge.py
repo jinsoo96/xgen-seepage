@@ -8,9 +8,8 @@ XGEN 백엔드의 `/api/tools/ws/connector-mcp/{user_id}` WebSocket에 붙어 �
 바로 호출할 수 있게 되는 지점이 여기다. "(llm외) 에이전트들의 기능이
 동작하게" 라는 요구사항을 채우는 핵심 컴포넌트.
 
-와이어 프로토콜은 PlateerLab/xgen-connector `src/main/mcp-bridge.ts`가 쓰는
-것과 **완전히 동일하다**(참고 전용 확인. 이 프로젝트는 xgen-connector에
-의존하지 않고 이 프로토콜을 Python으로 독립적으로 재구현한다. NOTICE 참조):
+서버와 주고받는 와이어 프로토콜(hello/ready/ping/mcp_call/mcp_result)은
+다음과 같다:
 
   클라이언트→서버: {"type":"hello","catalog_id":<str>,"tools":[...]}
                    {"type":"ping"}                              (20초 간격)

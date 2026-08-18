@@ -41,8 +41,7 @@ def _env(name: str) -> str | None:
 
 
 def _env_bool(name: str) -> bool | None:
-    """"true"/"1"/"false"/"0" 파싱. xgen-connector deployment-defaults.ts의
-    optionalBoolean과 같은 규칙(참고 전용, NOTICE 참조)."""
+    """"true"/"1"/"false"/"0" 파싱."""
     raw = _env(name)
     if raw is None or raw == "":
         return None
@@ -169,8 +168,8 @@ async def cmd_status(_args: argparse.Namespace) -> int:
 
 def _has_agentflow_access(permissions: list[str]) -> bool:
     """워크플로우(에이전트) 조회/실행에 필요한 권한을 갖고 있는가. XGEN
-    게이트웨이가 요구하는 권한 이름 기준(참고: xgen-connector PROTOCOL.md의
-    `main.agentflow:read`). 권한 표기가 서버 버전마다 조금씩 달라 넉넉히 매칭한다."""
+    게이트웨이가 요구하는 권한 이름(`main.agentflow:read`) 기준이며, 권한
+    표기가 서버 버전마다 조금씩 달라 넉넉히 매칭한다."""
     return any("agentflow" in p for p in permissions)
 
 
@@ -195,9 +194,9 @@ async def cmd_server_list(_args: argparse.Namespace) -> int:
 
 async def cmd_server_use(args: argparse.Namespace) -> int:
     """활성 XGEN 서버를 바꾼다. 그 서버에 유효한 토큰이 이미 있으면 비밀번호
-    없이 바로 전환하고, 없으면 `login`을 안내한다. xgen-connector처럼 서버
-    전환은 계정 공간 전환이라, 토큰은 서버별로 분리해 둔다(한 서버 토큰이
-    다른 서버로 새어 403이 나지 않게)."""
+    없이 바로 전환하고, 없으면 `login`을 안내한다. 서버 전환은 계정 공간
+    전환이라, 토큰은 서버별로 분리해 둔다(한 서버 토큰이 다른 서버로 새어
+    403이 나지 않게)."""
     cfg = cfgmod.load_config()
     servers = list(cfg.known_servers) or ([cfg.server_url] if cfg.server_url else [])
     target = (args.server or "").strip()

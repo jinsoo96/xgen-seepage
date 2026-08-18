@@ -1,10 +1,8 @@
 """xgen-seepage 공통 타입.
 
-dataclass 명명 규칙은 PlateerLab/document-adapter의 `base.py`를 그대로 따른다.
-같은 XGEN 세션에서 두 MCP 서버(document-adapter: 닫힌 파일 편집,
-xgen-seepage: 열려 있는 통합문서 실시간 편집)의 도구를 함께 쓰는 LLM이
-스키마마다 다른 관례를 재학습하지 않도록 하기 위함이다. 근거는 저장소
-루트 `ARCHITECTURE.md` 및 `NOTICE` 참조.
+dataclass 명명 규칙은 저장소 전체에서 일관되게 유지한다. 같은 XGEN
+세션에서 여러 편집 도구를 함께 쓰는 LLM이 스키마마다 다른 관례를
+재학습하지 않도록 하기 위함이다. 근거는 저장소 루트 `ARCHITECTURE.md` 참조.
 """
 from __future__ import annotations
 

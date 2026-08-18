@@ -101,10 +101,10 @@
 ## 0.14.3 (2026-08-17)
 
 **폐쇄망 내부 CA 대응 - OS 신뢰 저장소로 TLS 검증(설치파일 활용의 핵심).**
-xgen-connector를 참고하란 이유가 "설치파일로 들고 가 폐쇄망에서 쓰는 것"이라,
-그 관점으로 다시 파보니 TLS가 진짜 문제였다. xgen-connector는 Electron
-`net.fetch`(시스템 인증서 인지)로 폐쇄망 XGEN에 그대로 붙는데, 우리 커넥터는
-httpx 기본값인 `certifi`(고정 공개 CA 목록)만 봐서 **OS 신뢰 저장소를 안 봤다**.
+"설치파일로 들고 가 폐쇄망에서 쓴다"는 관점으로 다시 파보니 TLS가 진짜
+문제였다. 시스템 인증서를 인지하는 클라이언트는 폐쇄망 XGEN에 그대로 붙는데,
+우리 커넥터는 httpx 기본값인 `certifi`(고정 공개 CA 목록)만 봐서 **OS 신뢰
+저장소를 안 봤다**.
 그래서 폐쇄망 내부 CA가 PC(OS)에 설치돼 있어도 XGEN 인증서를 거부해 접속이
 실패하고, 유일한 우회가 검증 전면 해제뿐이었다.
 
@@ -155,12 +155,12 @@ XGEN을 오갈 때 토큰이 어긋나 403이 나는 걸 구조적으로 없애�
   순서도 고쳐, 토큰 저장이 실패하면 활성 서버를 바꾸지 않는다.
 - **`xgen-seepage server list`/`use` 신규**: 로그인해 본 서버와 토큰 보유
   여부를 보고, 그 서버에 토큰이 있으면 재로그인 없이 활성 서버를 전환한다
-  (xgen-connector의 "서버 전환=계정 공간 전환" 모델을 서버별 토큰으로 개선).
+  (여러 서버를 오갈 때 "서버 전환=계정 공간 전환"이 되도록 서버별 토큰으로 관리).
 - **403을 명확히**: 403은 토큰이 아니라 권한 문제다(게이트웨이가 JWT로 판정).
   패널과 `status`가 "이 계정은 이 서버에서 권한이 없다 - 서버/계정을 확인하라"
   고 알려준다. 패널 헤더에 지금 붙은 서버·계정을 표시(`/server`)해 엉뚱한
   서버에 붙은 걸 눈으로 잡게 했다.
-- 실행 요청 바디를 xgen-connector 정본(`include_tool_events` 등)에 맞춤.
+- 실행 요청 바디를 XGEN 실행 API 형식(`include_tool_events` 등)에 맞춤.
 - 저장소 정리: 테스트·내부 worklog를 공개 레포에서 빼고 로직만 남김.
 
 ## 0.13.0 (2026-08-17)
@@ -316,8 +316,8 @@ Office JavaScript API를 하나도 안 쓰는데(셀 편집은 브릿지가 함)
 
 **설계 정정: "워크플로우 자동생성"이 아니라 "연결"이다.** 0.5.0에서 계획한
 Phase 3(채팅용 워크플로우가 없으면 xgen-seepage가 자동 생성)은 틀린
-방향이었다 - xgen-connector처럼 사용자가 XGEN에 이미 갖고 있는 워크플로우
-중 하나에 태스크팬을 연결해야 한다. 자세한 내용은 `ARCHITECTURE.md` §10.
+방향이었다 - 사용자가 XGEN에 이미 갖고 있는 워크플로우 중 하나에 태스크팬을
+연결해야 한다. 자세한 내용은 `ARCHITECTURE.md` §10.
 
 - **서버 로그로 ERROR401의 진짜 원인을 확정했다**(SSH로 dev-177 파드 로그
   직접 확인): (1) 방금 만든 워크플로우는 dev 서버 전반에 걸쳐 자기 자신도
@@ -430,14 +430,11 @@ README에서 내부 참고 레포/다른 사내 클라이언트 언급을 정리
 
 ## 0.2.1 (2026-08-13)
 
-- 사용자 요청으로 xgen-connector의 연결 로직을 더 적극적으로 참고: 사설/
-  자체서명 CA를 쓰는 폐쇄망 XGEN 서버 접속을 위한 `allow_private_certificate`
+- 사설/자체서명 CA를 쓰는 폐쇄망 XGEN 서버 접속을 위한 `allow_private_certificate`
   를 실제로 구현했다(전에는 설정 필드만 있고 어디에도 안 이어져 있었다).
-  `connection_security.py` 신규(`connection-security.ts`의
-  `shouldAllowPrivateCertificate`/`xgenWebSocketTlsOptions`와 같은 취지로
-  포팅, NOTICE 참조). `login --allow-private-certificate` 플래그 +
-  `XGEN_SEEPAGE_ALLOW_PRIVATE_CERTIFICATE` 환경변수(배포 기본값용, 역시
-  xgen-connector의 `deployment-defaults.ts` 패턴 참고) 추가. wss://에만
+  `connection_security.py` 신규(사설 CA를 명시적으로 신뢰하는 TLS 정책).
+  `login --allow-private-certificate` 플래그 +
+  `XGEN_SEEPAGE_ALLOW_PRIVATE_CERTIFICATE` 환경변수(배포 기본값용) 추가. wss://에만
   적용하고 ws://에는 안 넣는 로직까지 실제 테스트로 검증
   (`tests/test_connector_tls.py`).
 - **실제 크래시 버그 발견 및 전면 수정**: `argparse` 도움말 문자열에 든
@@ -448,18 +445,17 @@ README에서 내부 참고 레포/다른 사내 클라이언트 언급을 정리
 
 ## 0.2.0 (2026-08-13)
 
-방향 전환: xgen-connector의 Local MCP에 얹는 방식에서, **독립 실행형
-커넥터**로 재설계(사용자 정정. 폐쇄망 단일 설치 프로그램이어야 하고,
-document-adapter/xgen-doc2chunk/xgen-connector는 참고 자료일 뿐 런타임
+방향 전환: 로컬 MCP에 얹는 방식에서 **독립 실행형 커넥터**로 재설계(사용자
+정정. 폐쇄망 단일 설치 프로그램이어야 하고, 외부 클라이언트가 런타임
 의존성이면 안 됨).
 
 - `connector/` 신규: XGEN 서버에 직접 로그인(`hash.py`/`auth.py`,
-  `/api/auth/login` 등 실제 프로토콜을 xgen-connector 소스에서 확인해 독립
-  재구현) + `/api/tools/ws/connector-mcp/{user_id}` WebSocket 브릿지
+  `/api/auth/login` 등 XGEN 프로토콜을 독립 재구현) +
+  `/api/tools/ws/connector-mcp/{user_id}` WebSocket 브릿지
   (`bridge.py`, hello/ready/mcp_call/mcp_result) + 로컬 설정/OS 키체인 토큰
   저장(`config.py`) + CLI(`app.py`: `login`/`run`/`status`/`logout`).
 - 새 콘솔 스크립트 `xgen-seepage`(기본 경로). 기존 `xgen-seepage-mcp`는
-  xgen-connector/Claude Desktop에 얹고 싶을 때 쓰는 대안으로 유지.
+  로컬 MCP 클라이언트/Claude Desktop에 얹고 싶을 때 쓰는 대안으로 유지.
 - `tests/test_connector_*.py`: 해싱/설정파일/OS 키체인 왕복 단위테스트 +
   가짜 XGEN 서버(aiohttp, 실제 로컬 소켓)로 로그인+WS 브릿지 전체 왕복을
   검증하는 통합테스트. 총 36개 테스트 통과.
@@ -481,5 +477,5 @@ Initial scaffold.
 - `csv_adapter`: 인코딩(BOM/chardet)·구분자 자동 감지 CSV 읽기/쓰기, 셀 단위
   편집, Excel로 열어 라이브 모드로 넘기는 `open_in_excel`.
 - `tools.py` / `mcp_server.py`: 14개 도구를 MCP stdio 서버로 노출
-  (`xgen-seepage-mcp`). XGEN Connector의 "로컬 MCP" 브릿지에 그대로 등록 가능.
+  (`xgen-seepage-mcp`). 로컬 MCP를 지원하는 클라이언트에 그대로 등록 가능.
 - 리서치 기반 아키텍처 문서 `ARCHITECTURE.md`.

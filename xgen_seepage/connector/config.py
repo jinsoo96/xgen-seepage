@@ -1,15 +1,13 @@
 """xgen-seepage 자체 로컬 설정.
 
-xgen-connector의 `connector.json`과는 **별개의 독립 파일**이다.
-xgen-connector 설치 여부와 무관하게 동작해야 한다는 요구사항 때문에, 이
-프로젝트만의 설정 파일/키체인 항목을 쓴다(파일이 두는 정보의 종류만
-xgen-connector `src/main/config.ts`를 참고했다. NOTICE 참조).
+이 프로젝트만의 독립 설정 파일이며, 별도 데스크톱 클라이언트의 설치
+여부와 무관하게 동작한다.
 
 토큰(access/refresh)은 가능하면 이 JSON 파일에 두지 않고 OS 키체인
 (Windows Credential Manager / macOS Keychain / Linux libsecret)에 `keyring`
-패키지로 저장한다. xgen-connector가 JWT를 평문 파일에 두지 않고 OS
-키체인에 두는 것과 같은 이유(설치 프로그램이 도난당해도 토큰이 파일
-그대로 노출되지 않게 하기 위함)다.
+패키지로 저장한다. JWT를 평문 파일에 두지 않고 OS 키체인에 두는 이유는
+설치 프로그램이 도난당해도 토큰이 파일 그대로 노출되지 않게 하기
+위함이다.
 
 단, 헤드리스/서비스 세션·원격(SSH) 실행·폐쇄망 서버 계정처럼 **OS 키체인
 자체에 접근할 수 없는 환경**이 실제로 존재한다(macOS는 GUI 로그인 세션이

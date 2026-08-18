@@ -1,9 +1,9 @@
 """라이브 어댑터: xlwings 기반, "지금 열려 있는" 통합문서를 그 자리에서 편집한다.
 
-이것이 xgen-seepage의 핵심 차별점이다. document-adapter(PlateerLab)는 **디스크의
-파일**을 openpyxl로 열고/고치고/저장하는 배치형 도구다. Claude for Excel /
-ChatGPT for Excel처럼 "지금 화면에 떠 있는 시트를 실시간으로 편집"하려면
-파일 저장을 거치지 않고 **살아 있는 Excel 프로세스**에 직접 붙어야 한다.
+이것이 xgen-seepage의 핵심 차별점이다. 디스크의 파일을 열고/고치고/저장하는
+배치형 편집과 달리, Claude for Excel / ChatGPT for Excel처럼 "지금 화면에 떠
+있는 시트를 실시간으로 편집"하려면 파일 저장을 거치지 않고 **살아 있는 Excel
+프로세스**에 직접 붙어야 한다.
 
 두 가지 접근을 비교해 xlwings(로컬 COM/AppleScript 자동화)를 선택했다:
   - Office.js 태스크팬 방식(Claude/ChatGPT for Excel 실제 구현): HTTPS로 호스팅되는
@@ -14,9 +14,8 @@ ChatGPT for Excel처럼 "지금 화면에 떠 있는 시트를 실시간으로 �
     원천적으로 없다. 대신 Windows/macOS 전용이고 로컬에 Excel 설치가 필요하다.
 자세한 리서치 근거는 저장소 루트 `ARCHITECTURE.md` 참조.
 
-병합 셀 판정과 숫자/텍스트 변환 휴리스틱은 PlateerLab/document-adapter의
-`xlsx_adapter.py`와 동일 시맨틱을 따른다(NOTICE 참조). 대상이 파일이 아니라
-xlwings Range라는 점만 다르다.
+병합 셀 판정과 숫자/텍스트 변환 휴리스틱은 `_cellfmt`의 규칙을 그대로
+따른다. 대상이 파일이 아니라 xlwings Range라는 점만 다르다.
 
 ⚠️ 성능: 각 셀 접근이 COM 왕복 1회다. 시트 전체를 셀 단위로 훑는 것은 느리다.
 그래서 값 읽기는 `Range.value`(2차원 리스트 벌크 반환)를 쓰고, 병합 셀 유무는

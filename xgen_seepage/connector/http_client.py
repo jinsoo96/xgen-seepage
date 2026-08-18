@@ -1,8 +1,7 @@
 """XGEN 게이트웨이용 최소 비동기 HTTP 클라이언트.
 
 책임 분담(베이스 URL 정규화, Bearer 헤더 자동 부착, JSON 요청/응답, 401에서
-auth-failure 훅)은 PlateerLab/xgen-connector `src/core/client.ts`(HttpClient)
-와 같은 모양을 따르되(참고 전용, NOTICE 참조), httpx 기반으로 새로 구현했다.
+auth-failure 훅)을 httpx 기반으로 구현했다.
 """
 from __future__ import annotations
 

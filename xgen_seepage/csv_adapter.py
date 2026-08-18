@@ -9,9 +9,8 @@ live_adapter로 넘어가는 편이 맞다(수식은 애초에 스프레드시�
 기능이지 CSV 파일 포맷의 기능이 아니다).
 
 인코딩 자동 감지(BOM 우선 → chardet → 후보 목록 순차 시도 → latin-1 최종
-폴백)는 PlateerLab/xgen-doc2chunk의 `csv_helper/csv_encoding.py`와 동일한
-전략을 그대로 이식했다(NOTICE 참조). 실사용 데이터(EUC-KR로 저장된 국내
-공공/사내 CSV 등)에서 검증된 순서이기 때문에 새로 설계하지 않았다.
+폴백)는 실사용 데이터(EUC-KR로 저장된 국내 공공/사내 CSV 등)에서 검증된
+순서를 따른다.
 """
 from __future__ import annotations
 
@@ -29,7 +28,7 @@ try:
 except ImportError:  # pragma: no cover - chardet은 필수 의존성이지만 방어적으로 처리
     chardet = None  # type: ignore[assignment]
 
-# BOM 우선 감지용 시그니처. PlateerLab/xgen-doc2chunk csv_helper/csv_encoding.py 이식.
+# BOM 우선 감지용 시그니처.
 _BOM_TABLE: list[tuple[bytes, str]] = [
     (b"\xef\xbb\xbf", "utf-8-sig"),
     (b"\xff\xfe\x00\x00", "utf-32-le"),

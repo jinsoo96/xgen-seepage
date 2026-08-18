@@ -10,7 +10,7 @@
 
 세 어댑터는 `tools.py`에서 MCP tool로 노출되고, `connector/`가 XGEN 서버에
 직접 로그인해 에이전트-도구 WebSocket 브릿지로 광고한다(`xgen-seepage`
-CLI). xgen-connector(PlateerLab)가 설치돼 있을 필요는 없다.
+CLI). 별도 데스크톱 커넥터 클라이언트를 설치할 필요가 없다.
 """
 
 __version__ = "0.19.0"

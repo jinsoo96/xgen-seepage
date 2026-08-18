@@ -2,9 +2,10 @@
 
 **설계를 바로잡음(2026-08-17, 사용자 정정)**: 처음엔 "채팅용 워크플로우가
 없으면 xgen-seepage가 하나 자동 생성한다"는 방향으로 만들고 있었다. 틀린
-방향이었다 - xgen-connector가 하는 것처럼 **연결**이어야 한다. 사용자가
-XGEN에 이미 갖고 있는 워크플로우(캔버스로 직접 만든 것, `agents/harness`
-노드가 든 것) 중 아무거나 하나에 태스크팬을 연결하는 것이지, xgen-seepage가
+방향이었다 - 이미 XGEN에 있는 워크플로우에 **연결**하는 것이어야 한다.
+사용자가 XGEN에 이미 갖고 있는 워크플로우(캔버스로 직접 만든 것,
+`agents/harness` 노드가 든 것) 중 아무거나 하나에 태스크팬을 연결하는
+것이지, xgen-seepage가
 전용 워크플로우를 서버에 몰래 만들어서 소유하는 게 아니다. 그래서 이
 모듈은 조회/실행만 하고, "이 워크플로우가 없으면 만든다" 같은 로직이
 없다. 사용자가 `xgen-seepage chat-workflow list`/`set`으로 직접 고른다.
@@ -194,10 +195,9 @@ class AgentflowApi:
         loaded`의 해법임을 확인했다: provider가 비면 서버 기본값(안 떠 있는
         vLLM)으로 떨어져 죽는데, `provider=anthropic`을 주입하니 에이전트가
         실제로 도구를 호출하고 열린 Excel의 셀을 바꿨다."""
-        # 바디 필드는 xgen-connector `src/core/chat.ts`의 실행 요청과 같은 모양을
-        # 따른다(참고 전용, NOTICE 참조). include_tool_events를 켜야 에이전트가
-        # 도구를 호출할 때 패널에 "[도구 호출] set_live_cell" 같은 이벤트가 뜬다
-        # (사용자가 셀 편집이 실제로 일어나는 걸 눈으로 본다).
+        # 바디 필드는 XGEN 실행 요청 형식을 따른다. include_tool_events를 켜야
+        # 에이전트가 도구를 호출할 때 패널에 "[도구 호출] set_live_cell" 같은
+        # 이벤트가 뜬다(사용자가 셀 편집이 실제로 일어나는 걸 눈으로 본다).
         body: dict[str, Any] = {
             "workflow_id": workflow_id,
             "workflow_name": workflow_name,

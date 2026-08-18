@@ -2,9 +2,8 @@
 
 흐름(login → {access_token, refresh_token}, 이후 모든 호출은 Authorization:
 Bearer <access_token>, validate-token으로 신원 확인, refresh로 재발급)은
-PlateerLab/xgen-connector `src/core/auth.ts`와 같은 API 계약을 따르되
-(참고 전용 확인. 실제 엔드포인트/필드명은 XGEN 백엔드가 정본이고 이 파일이
-그걸 재발명하지 않는다는 뜻이다. NOTICE 참조), Python으로 새로 구현했다.
+XGEN 백엔드의 API 계약을 따른다. 실제 엔드포인트/필드명은 XGEN 백엔드가
+정본이고 이 파일은 그걸 Python으로 구현한 것이다.
 """
 from __future__ import annotations
 

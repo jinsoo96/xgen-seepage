@@ -6,9 +6,9 @@
 
 문제: httpx는 기본으로 `certifi`(고정된 공개 CA 목록)만 보고 **OS 신뢰 저장소를
 안 본다**. 그래서 내부 CA가 PC에 깔려 있어도 우리 커넥터는 XGEN 인증서를 거부해
-접속이 실패한다 - 유일한 우회가 검증 전면 해제뿐이었다(위험). xgen-connector가
-Electron `net.fetch`(시스템 프록시·인증서 인지)로 폐쇄망 XGEN에 그대로 붙는 것과
-같은 동작을, 여기서는 **OS 신뢰 저장소를 쓰는 TLS 컨텍스트**로 맞춘다. (WebSocket
+접속이 실패한다 - 유일한 우회가 검증 전면 해제뿐이었다(위험). 그래서 폐쇄망
+XGEN에 검증을 끄지 않고 붙을 수 있도록, 여기서는 **OS 신뢰 저장소를 쓰는 TLS
+컨텍스트**로 맞춘다. (WebSocket
 브릿지는 websockets가 기본으로 `ssl.create_default_context()`를 써 이미 OS 저장소를
 보지만, 일관성과 truststore의 견고함을 위해 여기서도 같은 컨텍스트를 넘긴다.)
 """

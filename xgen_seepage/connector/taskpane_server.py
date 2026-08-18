@@ -47,8 +47,8 @@ async def _health(_request: Request) -> JSONResponse:
 def _friendly_xgen_error(e: ApiError) -> JSONResponse:
     """XGEN이 준 에러 상태 코드를 패널에 실행 가능한 한국어 메시지로 바꿔
     준다. 특히 403은 토큰 문제가 아니라 **권한 문제**다(게이트웨이가 JWT로
-    권한을 판정, 참고 xgen-connector PROTOCOL.md) - 재로그인해도 안 풀리니
-    서버/계정을 확인하라고 정확히 알려준다. 그냥 "403"만 뜨면 사용자가 뭘
+    권한을 판정) - 재로그인해도 안 풀리니 서버/계정을 확인하라고 정확히
+    알려준다. 그냥 "403"만 뜨면 사용자가 뭘
     해야 할지 알 수 없다."""
     if e.status == 403:
         message = (

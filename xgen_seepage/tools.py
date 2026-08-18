@@ -1,10 +1,9 @@
 """MCP / Anthropic tool-use 정의 + dispatcher.
 
 스키마 형태(각 tool = {name, description, input_schema} dict, dispatcher는
-이름→dict 반환 함수, 예외는 {"error":..., "message":...}로 직렬화)는
-PlateerLab/document-adapter의 `tools.py` 관례를 그대로 따른다. 같은 XGEN
-세션에서 document-adapter(닫힌 파일)와 xgen-seepage(열린 통합문서) 도구를
-같이 등록해도 LLM이 두 서버를 다른 스타일로 다룰 필요가 없게 하기 위함.
+이름→dict 반환 함수, 예외는 {"error":..., "message":...}로 직렬화)는 저장소
+전체에서 일관되게 유지한다. 같은 XGEN 세션에 여러 도구를 같이 등록해도
+LLM이 서버마다 다른 스타일로 다룰 필요가 없게 하기 위함.
 """
 from __future__ import annotations
 
@@ -1104,7 +1103,7 @@ TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
 
 
 def call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
-    """이름으로 tool 실행. 예외도 dict로 직렬화(document-adapter와 동일 관례)."""
+    """이름으로 tool 실행. 예외도 dict로 직렬화한다."""
     handler = TOOL_HANDLERS.get(name)
     if handler is None:
         return {"error": f"unknown tool: {name}"}
