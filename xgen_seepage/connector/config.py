@@ -5,20 +5,34 @@ xgen-connector 설치 여부와 무관하게 동작해야 한다는 요구사항
 프로젝트만의 설정 파일/키체인 항목을 쓴다(파일이 두는 정보의 종류만
 xgen-connector `src/main/config.ts`를 참고했다. NOTICE 참조).
 
-토큰(access/refresh)은 이 JSON 파일에 평문으로 두지 않는다. OS 키체인
+토큰(access/refresh)은 가능하면 이 JSON 파일에 두지 않고 OS 키체인
 (Windows Credential Manager / macOS Keychain / Linux libsecret)에 `keyring`
 패키지로 저장한다. xgen-connector가 JWT를 평문 파일에 두지 않고 OS
 키체인에 두는 것과 같은 이유(설치 프로그램이 도난당해도 토큰이 파일
 그대로 노출되지 않게 하기 위함)다.
+
+단, 헤드리스/서비스 세션·원격(SSH) 실행·폐쇄망 서버 계정처럼 **OS 키체인
+자체에 접근할 수 없는 환경**이 실제로 존재한다(macOS는 GUI 로그인 세션이
+아니면 -25308, Windows는 로그온 세션이 없으면 WinError 1312). 이런 곳에서
+키체인을 강제하면 "어디서든 파이썬 의존성 걱정 없이 돌아가야 한다"는 이
+프로젝트의 핵심 요구가 깨진다. 그래서 키체인이 불가할 때만 설정 폴더의
+`tokens.json`(권한 0600, 소유자 전용)으로 **폴백**한다 - 키체인이 되는
+데스크톱에서는 여전히 키체인이 우선이고, 파일 폴백은 키체인이 없는
+환경에서의 최후 수단이다(트레이드오프: 파일 노출 시 토큰 노출).
 """
 from __future__ import annotations
 
 import json
+import logging
+import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
 import keyring
+import keyring.errors
+
+_log = logging.getLogger(__name__)
 
 _SERVICE = "xgen-seepage"
 _KEY_ACCESS = "access_token"
@@ -132,34 +146,92 @@ def get_refresh_token(server_url: str) -> str | None:
     return v
 
 
-def _get_quietly(key: str) -> str | None:
+# ── 파일 폴백(키체인 불가 환경 전용) ─────────────────────────────────────
+# 키체인에 못 쓰는 헤드리스/폐쇄망에서만 쓰는 소유자 전용(0600) JSON.
+def _tokens_file() -> Path:
+    return config_dir() / "tokens.json"
+
+
+def _file_read(key: str) -> str | None:
+    p = _tokens_file()
+    if not p.exists():
+        return None
     try:
-        return keyring.get_password(_SERVICE, key)
-    except Exception:
-        # 읽기 실패는 "토큰 없음"과 동일하게. 재로그인을 유도하면 된다.
+        return json.loads(p.read_text(encoding="utf-8")).get(key)
+    except (json.JSONDecodeError, OSError):
         return None
 
 
-def set_tokens(server_url: str, access_token: str | None, refresh_token: str | None) -> None:
+def _file_write(key: str, value: str | None) -> None:
+    p = _tokens_file()
     try:
-        if access_token:
-            keyring.set_password(_SERVICE, _access_key(server_url), access_token)
-        else:
-            _delete_quietly(_access_key(server_url))
-        if refresh_token:
-            keyring.set_password(_SERVICE, _refresh_key(server_url), refresh_token)
-        else:
-            _delete_quietly(_refresh_key(server_url))
+        data = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    except (json.JSONDecodeError, OSError):
+        data = {}
+    if value:
+        data[key] = value
+    else:
+        data.pop(key, None)
+    if not data:
+        try:
+            p.unlink()
+        except OSError:
+            pass
+        return
+    config_dir().mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    try:
+        os.chmod(p, 0o600)  # 소유자만 읽기/쓰기
+    except OSError:
+        pass
+
+
+def _get_quietly(key: str) -> str | None:
+    try:
+        v = keyring.get_password(_SERVICE, key)
+    except Exception:
+        # 읽기 실패는 "키체인 없음"과 동일하게 보고 파일 폴백을 확인한다.
+        v = None
+    if v is not None:
+        return v
+    return _file_read(key)
+
+
+def _keyring_write(key: str, value: str | None) -> None:
+    """keyring에 한 항목을 쓰거나 지운다. 백엔드 자체가 불가하면 예외를
+    그대로 위로 던져(set_tokens가 파일 폴백으로 전환하게) 한다."""
+    if value:
+        keyring.set_password(_SERVICE, key, value)
+    else:
+        try:
+            keyring.delete_password(_SERVICE, key)
+        except keyring.errors.PasswordDeleteError:
+            pass  # 원래 없던 항목
+
+
+def set_tokens(server_url: str, access_token: str | None, refresh_token: str | None) -> None:
+    ak, rk = _access_key(server_url), _refresh_key(server_url)
+    try:
+        _keyring_write(ak, access_token)
+        _keyring_write(rk, refresh_token)
         # 서버별 슬롯에 확실히 옮겨 담았으니 레거시 단일 슬롯은 정리한다.
         _delete_quietly(_KEY_ACCESS)
         _delete_quietly(_KEY_REFRESH)
+        # 키체인 저장 성공 → 예전에 남았을 수 있는 파일 폴백 잔재를 지운다
+        # (두 곳에 동시에 남아 나중에 stale 토큰을 읽는 사고 방지).
+        _file_write(ak, None)
+        _file_write(rk, None)
     except Exception as e:
-        raise KeyringUnavailableError(
-            "OS 키체인에 토큰을 저장하지 못했습니다. 대화형 로그인 세션이 아닌 "
-            "환경(서비스 계정·원격/자동화 실행 등)에서 실행 중이면 Windows "
-            "Credential Manager/macOS Keychain에 접근할 수 없습니다. 일반 "
-            f"사용자 데스크톱 세션에서 다시 실행하세요. (원인: {type(e).__name__}: {e})"
-        ) from e
+        # 키체인 자체가 불가한 환경(헤드리스/서비스/원격/폐쇄망) → 파일(0600) 폴백.
+        _log.warning(
+            "OS 키체인에 접근할 수 없어 토큰을 %s (0600)에 저장합니다. "
+            "키체인이 되는 데스크톱 세션에서는 키체인이 우선입니다. (원인: %s: %s)",
+            _tokens_file(), type(e).__name__, e,
+        )
+        _file_write(ak, access_token)
+        _file_write(rk, refresh_token)
+        _file_write(_KEY_ACCESS, None)
+        _file_write(_KEY_REFRESH, None)
 
 
 def has_token(server_url: str) -> bool:
@@ -186,3 +258,5 @@ def _delete_quietly(key: str) -> None:
         # 경우(위 KeyringUnavailableError와 같은 원인)도 "이미 없는 셈" 취급한다.
         # 정리/로그아웃 경로가 키체인 상태 때문에 실패해서는 안 된다.
         pass
+    # 파일 폴백에 남은 항목도 함께 정리(로그아웃/클리어가 한쪽만 지우지 않게).
+    _file_write(key, None)

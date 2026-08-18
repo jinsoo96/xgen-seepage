@@ -186,6 +186,10 @@ class ConnectorMcpBridge:
                 catalog_synced=True,
                 server_tool_count=int(msg.get("tool_count") or 0),
             )
+            log.info(
+                "도구 카탈로그 동기화 완료: 보낸 %d개, 서버 등록 %d개",
+                len(self._tool_definitions), self.status.server_tool_count,
+            )
             return
         if kind == "mcp_call":
             request_id = msg.get("request_id")

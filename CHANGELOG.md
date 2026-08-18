@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.19.0 (2026-08-18)
+
+**"엑셀 내부 기능이 지시하에 다 돌게."** 셀 편집을 넘어 실무에서 쓰는 통합문서
+조작 전반을 도구로 노출. 전부 macOS(appscript)/Windows(COM) 양쪽에서 **실측**한
+방법만 넣었다(추측 배제). 총 도구 38 → 55개.
+
+- **조건부 행 강조** `color_live_rows_where` 신규: "어떤 열의 값이 X인 행"을
+  에이전트가 행 번호를 손으로 짚지 않고 조건으로 한 번에 색칠. 헤더가 여러 줄인
+  실무 대장에서 행이 어긋나거나 일부만 칠해지던 사고(에이전트가 `set_live_fill_color`
+  를 행마다 호출하다 오프셋으로 틀림)를 구조적으로 차단. clear_non_matching으로
+  잘못 칠해진 것도 함께 정리. `set_live_fill_color` 설명에 "조건부 색칠은 이걸 써라" 명시.
+- **구조 편집**: `insert_live_rows`/`delete_live_rows`/`insert_live_columns`/
+  `delete_live_columns`(수식·서식째 밀림, 원본 비파괴), `copy_live_range`(같은/다른
+  시트, 수식 상대참조 자동 조정), `set_live_rows_visible`/`set_live_columns_visible`.
+- **서식/레이아웃**: `set_live_borders`(격자/바깥/개별 변, thin·medium·thick),
+  `freeze_live_panes`(틀 고정/해제).
+- **데이터**: `find_replace_live`(사용 범위 찾기/바꾸기), `set_live_data_validation`
+  (드롭다운 목록), `set_live_autofilter`(자동필터 - Windows 전용, macOS는 미지원이라
+  정렬·조건부강조로 대체하도록 친절 에러), `recalculate_live`(수식 강제 재계산).
+- **이름 정의**: `define_live_name`/`list_live_names`/`delete_live_name`.
+- **macOS 한글 NFD 매칭 버그 수정**: macOS 파일시스템이 한글 파일·시트명을 NFD로
+  보관해 NFC 리터럴과 매칭이 조용히 빗나가던 문제(`_sheet`/`_resolve_book`에서
+  `unicodedata.normalize("NFC")` 재시도).
+- **토큰 저장 파일 폴백**: OS 키체인에 접근할 수 없는 헤드리스/서비스/원격(SSH)/
+  폐쇄망 환경에서 로그인이 막히던 문제를, 키체인 실패 시 설정 폴더
+  `tokens.json`(권한 0600)으로 폴백해 해결. 키체인 되는 데스크톱에선 키체인 우선.
+- 브릿지가 도구 카탈로그 동기화 시 "보낸 N개, 서버 등록 N개"를 로그로 남기게(관측성).
+
 ## 0.18.0 (2026-08-18)
 
 **통합문서 전체를 읽고, 그 안에서 원본 보존하며 자유롭게.** "엑셀에 침투했으면

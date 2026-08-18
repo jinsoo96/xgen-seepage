@@ -160,7 +160,7 @@ lo.set_cell(doc, sheet=0, row=1, col=2, value="1500")
 lo.save(doc)
 ```
 
-## 노출되는 도구 (38개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
+## 노출되는 도구 (55개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
 
 **Excel(열려 있는 통합문서)**
 
@@ -184,6 +184,20 @@ lo.save(doc)
 | `merge_live_cells` / `unmerge_live_cells` | 셀 병합 / 해제 |
 | `autofit_live` | 열 너비·행 높이를 내용에 맞춤 |
 | `set_live_column_width` / `set_live_row_height` | 열 너비 / 행 높이 지정 |
+| `set_live_borders` | 테두리(격자 전체/바깥/개별 변, 두께 thin·medium·thick) |
+| `sort_live_range` | 특정 열 기준 정렬(Excel 네이티브 - 행 전체 서식·수식 보존) |
+| `color_live_rows_where` | **조건부 행 강조** — '어떤 열=값'인 행을 한 번에 색칠(행 안 짚어 어긋남 방지) |
+| `clear_live_range` | 범위의 값/서식 지우기 |
+| `insert_live_rows` / `delete_live_rows` | 행 삽입 / 삭제(아래 데이터가 수식·서식째 밀림) |
+| `insert_live_columns` / `delete_live_columns` | 열 삽입 / 삭제(오른쪽 데이터 밀림) |
+| `copy_live_range` | 범위 복사(같은/다른 시트, 수식 상대참조 자동 조정) |
+| `set_live_rows_visible` / `set_live_columns_visible` | 행 / 열 숨기기·보이기 |
+| `freeze_live_panes` | 틀 고정(상단 N행 / 좌측 N열, rows=0·cols=0이면 해제) |
+| `find_replace_live` | 사용 범위 전체 찾기/바꾸기 |
+| `set_live_data_validation` | 드롭다운(목록) 유효성 검사 |
+| `set_live_autofilter` | 자동필터 켜기/끄기(**Windows 전용**) |
+| `recalculate_live` | 모든 수식 강제 재계산 |
+| `define_live_name` / `list_live_names` / `delete_live_name` | 이름 정의 추가 / 목록 / 삭제 |
 
 **LibreOffice(Excel 없는 환경, xlsx 파일을 직접 지정해서 연다)**
 

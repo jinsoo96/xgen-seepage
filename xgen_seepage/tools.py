@@ -104,6 +104,15 @@ def format_live_range(sheet: int | str, row0: int, col0: int, row1: int, col1: i
     return {"ok": True}
 
 
+def color_live_rows_where(sheet: int | str, condition_col: int, match_value: str, color: Any,
+                          target_col0: int, target_col1: int, data_start_row: int = 0,
+                          contains: bool = False, clear_non_matching: bool = True,
+                          workbook_id: str | None = None) -> dict[str, Any]:
+    return live_adapter.color_rows_where(
+        workbook_id, sheet, condition_col, match_value, color,
+        target_col0, target_col1, data_start_row, contains, clear_non_matching)
+
+
 def set_live_number_format(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
                            format_code: str, workbook_id: str | None = None) -> dict[str, Any]:
     live_adapter.set_number_format(workbook_id, sheet, row0, col0, row1, col1, format_code)
@@ -138,6 +147,101 @@ def set_live_column_width(sheet: int | str, col: int, width: float,
 def set_live_row_height(sheet: int | str, row: int, height: float,
                         workbook_id: str | None = None) -> dict[str, Any]:
     live_adapter.set_row_height(workbook_id, sheet, row, height)
+    return {"ok": True}
+
+
+def insert_live_rows(sheet: int | str, before_row: int, count: int = 1,
+                     workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.insert_rows(workbook_id, sheet, before_row, count)
+    return {"ok": True}
+
+
+def delete_live_rows(sheet: int | str, row: int, count: int = 1,
+                     workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.delete_rows(workbook_id, sheet, row, count)
+    return {"ok": True}
+
+
+def insert_live_columns(sheet: int | str, before_col: int, count: int = 1,
+                        workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.insert_columns(workbook_id, sheet, before_col, count)
+    return {"ok": True}
+
+
+def delete_live_columns(sheet: int | str, col: int, count: int = 1,
+                        workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.delete_columns(workbook_id, sheet, col, count)
+    return {"ok": True}
+
+
+def copy_live_range(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                    dest_row: int, dest_col: int, dest_sheet: int | str | None = None,
+                    workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.copy_range(workbook_id, sheet, row0, col0, row1, col1,
+                            dest_row, dest_col, dest_sheet)
+    return {"ok": True}
+
+
+def set_live_rows_visible(sheet: int | str, row0: int, row1: int, visible: bool,
+                          workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_rows_visible(workbook_id, sheet, row0, row1, visible)
+    return {"ok": True}
+
+
+def set_live_columns_visible(sheet: int | str, col0: int, col1: int, visible: bool,
+                             workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_columns_visible(workbook_id, sheet, col0, col1, visible)
+    return {"ok": True}
+
+
+def recalculate_live(workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.recalculate(workbook_id)
+    return {"ok": True}
+
+
+def define_live_name(name: str, refers_to: str,
+                     workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.define_name(workbook_id, name, refers_to)
+    return {"ok": True}
+
+
+def list_live_names(workbook_id: str | None = None) -> dict[str, Any]:
+    return {"names": live_adapter.list_names(workbook_id)}
+
+
+def delete_live_name(name: str, workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.delete_name(workbook_id, name)
+    return {"ok": True}
+
+
+def set_live_borders(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                     which: str = "all", style: str = "thin",
+                     workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_borders(workbook_id, sheet, row0, col0, row1, col1, which, style)
+    return {"ok": True}
+
+
+def freeze_live_panes(sheet: int | str, rows: int = 1, cols: int = 0,
+                      workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.freeze_panes(workbook_id, sheet, rows, cols)
+    return {"ok": True}
+
+
+def find_replace_live(sheet: int | str, find: str, replace: str, match_case: bool = False,
+                      workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.find_replace(workbook_id, sheet, find, replace, match_case)
+    return {"ok": True}
+
+
+def set_live_data_validation(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                             values: list[str], workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_data_validation_list(workbook_id, sheet, row0, col0, row1, col1, values)
+    return {"ok": True}
+
+
+def set_live_autofilter(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                        on: bool = True, workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_autofilter(workbook_id, sheet, row0, col0, row1, col1, on)
     return {"ok": True}
 
 
@@ -463,9 +567,10 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "name": "set_live_fill_color",
         "description": (
             "셀 범위의 배경(채우기) 색을 칠한다. color는 '#FFFF00' 또는 'yellow'/'노란색' "
-            "같은 값. color를 'none'으로 주면 채우기 제거. 조건에 맞는 여러 행을 칠하려면 "
-            "각 행 범위(row0=row1=그 행)로 여러 번 호출한다. 예: '결함상태'가 '결함조치완료'인 "
-            "행을 노란색으로."
+            "같은 값. color를 'none'으로 주면 채우기 제거. "
+            "★ '어떤 열 값이 X인 행을 칠해라' 같은 조건부 색칠은 이 도구로 행마다 호출하지 "
+            "말고 반드시 color_live_rows_where를 써라. 행을 손으로 짚으면 헤더가 여러 줄인 "
+            "실무 표에서 행이 어긋나거나 일부만 칠해진다."
         ),
         "input_schema": {
             "type": "object",
@@ -477,6 +582,38 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "color": {"description": "'#FFFF00' / 'yellow' / '노란색' 등, 또는 'none'(제거)"},
             },
             "required": ["sheet", "row0", "col0", "row1", "col1", "color"],
+        },
+    },
+    {
+        "name": "color_live_rows_where",
+        "description": (
+            "조건 열의 값이 특정 값인 '행들'을 한 번에 색칠한다. 조건부 강조·플래그의 정석 도구. "
+            "행 번호를 직접 계산하지 않으므로 헤더가 여러 줄인 실무 표에서도 어긋나지 않는다. "
+            "동작: 데이터 행(data_start_row부터)을 훑어 condition_col 값이 match_value와 같은(또는 "
+            "contains=true면 포함하는) 행의 대상 열 범위(target_col0..target_col1)를 color로 칠한다. "
+            "clear_non_matching=true(기본)면 대상 열의 기존 채우기를 먼저 지우고 매칭 행만 칠해, "
+            "잘못 칠해진 것도 함께 정리된다. 열 인덱스는 모두 0-based. "
+            "예: '결함 상태'(M열=12)가 '개선조치완료'인 행의 맨 오른쪽 표시열(28)을 노랑으로 → "
+            "condition_col=12, match_value='개선조치완료', target_col0=28, target_col1=28, "
+            "data_start_row=(첫 데이터 행의 0-based 인덱스). "
+            "먼저 get_workbook_overview/get_live_schema로 헤더 행 위치와 상태 열 위치를 확인해 "
+            "data_start_row와 condition_col을 정확히 잡아라."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "sheet": {"description": "시트 인덱스 또는 이름"},
+                "condition_col": {"type": "integer", "description": "조건 열 0-based 인덱스(예: 상태 열)"},
+                "match_value": {"type": "string", "description": "이 값과 같은(또는 contains면 포함하는) 행을 칠함"},
+                "color": {"description": "'#FFFF00' / 'yellow' / '노란색' 등"},
+                "target_col0": {"type": "integer", "description": "칠할 열 범위 시작(0-based)"},
+                "target_col1": {"type": "integer", "description": "칠할 열 범위 끝(0-based). 한 열이면 target_col0와 동일"},
+                "data_start_row": {"type": "integer", "description": "첫 데이터 행 0-based 인덱스(헤더 아래). 기본 0"},
+                "contains": {"type": "boolean", "description": "true면 부분 일치. 기본 false(정확히 일치)"},
+                "clear_non_matching": {"type": "boolean", "description": "true(기본)면 대상 열 기존 채우기 먼저 제거 후 매칭 행만 칠함"},
+            },
+            "required": ["sheet", "condition_col", "match_value", "color", "target_col0", "target_col1"],
         },
     },
     {
@@ -543,6 +680,126 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
             "row": {"type": "integer"}, "height": {"type": "number"}},
             "required": ["sheet", "row", "height"]}},
+    {
+        "name": "insert_live_rows",
+        "description": "before_row(0-based) 위치에 빈 행 count개를 삽입한다. 아래 데이터는 수식·서식째 밀려 내려간다(원본 비파괴).",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "before_row": {"type": "integer", "description": "이 행(0-based) 앞에 삽입"},
+            "count": {"type": "integer", "default": 1}},
+            "required": ["sheet", "before_row"]}},
+    {
+        "name": "delete_live_rows",
+        "description": "row(0-based)부터 count개 행을 삭제한다. 아래 데이터가 위로 당겨진다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row": {"type": "integer"}, "count": {"type": "integer", "default": 1}},
+            "required": ["sheet", "row"]}},
+    {
+        "name": "insert_live_columns",
+        "description": "before_col(0-based) 위치에 빈 열 count개를 삽입한다. 오른쪽 데이터는 수식·서식째 밀려난다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "before_col": {"type": "integer", "description": "이 열(0-based) 앞에 삽입"},
+            "count": {"type": "integer", "default": 1}},
+            "required": ["sheet", "before_col"]}},
+    {
+        "name": "delete_live_columns",
+        "description": "col(0-based)부터 count개 열을 삭제한다. 오른쪽 데이터가 왼쪽으로 당겨진다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "col": {"type": "integer"}, "count": {"type": "integer", "default": 1}},
+            "required": ["sheet", "col"]}},
+    {
+        "name": "copy_live_range",
+        "description": "범위를 다른 위치(같은/다른 시트)로 복사한다. 값·수식·서식이 함께 복사되고 수식 상대참조는 붙여넣는 위치에 맞게 자동 조정된다. 좌표는 0-based.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "원본 시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"},
+            "dest_row": {"type": "integer", "description": "붙여넣을 좌상단 행(0-based)"},
+            "dest_col": {"type": "integer", "description": "붙여넣을 좌상단 열(0-based)"},
+            "dest_sheet": {"description": "붙여넣을 시트(생략 시 원본과 동일)"}},
+            "required": ["sheet", "row0", "col0", "row1", "col1", "dest_row", "dest_col"]}},
+    {
+        "name": "set_live_rows_visible",
+        "description": "row0..row1(0-based, 포함) 행을 숨기거나(visible=false) 다시 보이게 한다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "row1": {"type": "integer"}, "visible": {"type": "boolean"}},
+            "required": ["sheet", "row0", "row1", "visible"]}},
+    {
+        "name": "set_live_columns_visible",
+        "description": "col0..col1(0-based, 포함) 열을 숨기거나(visible=false) 다시 보이게 한다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "col0": {"type": "integer"}, "col1": {"type": "integer"}, "visible": {"type": "boolean"}},
+            "required": ["sheet", "col0", "col1", "visible"]}},
+    {
+        "name": "recalculate_live",
+        "description": "모든 수식을 강제로 재계산한다(값이 안 갱신되거나 자동계산이 꺼진 것 같을 때).",
+        "input_schema": {"type": "object", "properties": {"workbook_id": {"type": "string"}}}},
+    {
+        "name": "define_live_name",
+        "description": "이름 정의를 추가한다. refers_to는 '=시트!$A$1:$A$10' 형식. 수식에서 이름으로 참조 가능.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "name": {"type": "string"},
+            "refers_to": {"type": "string", "description": "'=Sheet1!$A$1:$A$10' 형식"}},
+            "required": ["name", "refers_to"]}},
+    {
+        "name": "list_live_names",
+        "description": "통합문서에 정의된 이름(이름·참조) 목록을 반환한다.",
+        "input_schema": {"type": "object", "properties": {"workbook_id": {"type": "string"}}}},
+    {
+        "name": "delete_live_name",
+        "description": "정의된 이름을 삭제한다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "name": {"type": "string"}},
+            "required": ["name"]}},
+    {
+        "name": "set_live_borders",
+        "description": "범위에 검정 실선 테두리를 긋는다. which='all'(격자 전체)/'outline'(바깥 테두리만)/'top'/'bottom'/'left'/'right', style='thin'/'medium'/'thick'. 좌표 0-based.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"},
+            "which": {"type": "string", "enum": ["all", "outline", "top", "bottom", "left", "right"], "default": "all"},
+            "style": {"type": "string", "enum": ["thin", "medium", "thick"], "default": "thin"}},
+            "required": ["sheet", "row0", "col0", "row1", "col1"]}},
+    {
+        "name": "freeze_live_panes",
+        "description": "상단 rows개 행 / 좌측 cols개 열을 고정한다(스크롤해도 고정). 헤더 1줄 고정은 rows=1, cols=0. rows=0 이고 cols=0 이면 고정 해제.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "rows": {"type": "integer", "default": 1, "description": "고정할 상단 행 수"},
+            "cols": {"type": "integer", "default": 0, "description": "고정할 좌측 열 수"}},
+            "required": ["sheet"]}},
+    {
+        "name": "find_replace_live",
+        "description": "시트의 사용 범위에서 find를 replace로 모두 바꾼다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "find": {"type": "string"}, "replace": {"type": "string"},
+            "match_case": {"type": "boolean", "default": False}},
+            "required": ["sheet", "find", "replace"]}},
+    {
+        "name": "set_live_data_validation",
+        "description": "범위 셀에 드롭다운(목록) 유효성 검사를 건다. values의 항목만 고를 수 있다. 좌표 0-based.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"},
+            "values": {"type": "array", "items": {"type": "string"}, "description": "드롭다운에 넣을 항목들"}},
+            "required": ["sheet", "row0", "col0", "row1", "col1", "values"]}},
+    {
+        "name": "set_live_autofilter",
+        "description": "범위에 자동필터를 켜거나(on=true) 끈다(on=false). ★Windows 전용 - macOS Excel은 미지원이니 정렬(sort_live_range)이나 조건부 강조(color_live_rows_where)로 대체. 좌표 0-based.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"},
+            "on": {"type": "boolean", "default": True}},
+            "required": ["sheet", "row0", "col0", "row1", "col1"]}},
     {
         "name": "inspect_csv",
         "description": (
@@ -803,6 +1060,7 @@ TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "delete_live_sheet": delete_live_sheet,
     "move_live_sheet": move_live_sheet,
     "set_live_fill_color": set_live_fill_color,
+    "color_live_rows_where": color_live_rows_where,
     "format_live_range": format_live_range,
     "set_live_number_format": set_live_number_format,
     "merge_live_cells": merge_live_cells,
@@ -810,6 +1068,22 @@ TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "autofit_live": autofit_live,
     "set_live_column_width": set_live_column_width,
     "set_live_row_height": set_live_row_height,
+    "insert_live_rows": insert_live_rows,
+    "delete_live_rows": delete_live_rows,
+    "insert_live_columns": insert_live_columns,
+    "delete_live_columns": delete_live_columns,
+    "copy_live_range": copy_live_range,
+    "set_live_rows_visible": set_live_rows_visible,
+    "set_live_columns_visible": set_live_columns_visible,
+    "recalculate_live": recalculate_live,
+    "define_live_name": define_live_name,
+    "list_live_names": list_live_names,
+    "delete_live_name": delete_live_name,
+    "set_live_borders": set_live_borders,
+    "freeze_live_panes": freeze_live_panes,
+    "find_replace_live": find_replace_live,
+    "set_live_data_validation": set_live_data_validation,
+    "set_live_autofilter": set_live_autofilter,
     "inspect_csv": inspect_csv,
     "get_csv_cell": get_csv_cell,
     "set_csv_cell": set_csv_cell,

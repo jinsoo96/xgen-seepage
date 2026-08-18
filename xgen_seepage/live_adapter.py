@@ -28,6 +28,7 @@ xlwings Range라는 점만 다르다.
 from __future__ import annotations
 
 import platform
+import unicodedata
 from typing import Any
 
 from ._cellfmt import cell_text, coerce_for_write
@@ -157,10 +158,11 @@ def _resolve_book(workbook_id: str | None) -> Any:
             pid = int(pid_s)
         except ValueError:
             raise WorkbookNotFoundError(f"잘못된 workbook_id: {workbook_id!r}") from None
+        want = unicodedata.normalize("NFC", name)
         for app in xw_.apps:
             if app.pid == pid:
                 for book in app.books:
-                    if book.name == name:
+                    if book.name == name or unicodedata.normalize("NFC", book.name) == want:
                         return book
     except WorkbookNotFoundError:
         raise
@@ -177,8 +179,16 @@ def _sheet(workbook_id: str | None, sheet: int | str) -> Any:
     book = _resolve_book(workbook_id)
     try:
         return book.sheets[sheet]
-    except Exception as exc:
-        raise SheetIndexError(f"sheet {sheet!r} not found in {book.name!r}") from exc
+    except Exception:
+        pass
+    # 이름 조회 실패 시 유니코드 정규화로 재시도: macOS는 한글 시트명을 NFD(자모
+    # 분해)로 보관해, 채팅에서 온 NFC 리터럴과 바이트가 달라 직접 조회가 빗나간다.
+    if isinstance(sheet, str):
+        want = unicodedata.normalize("NFC", sheet)
+        for s in book.sheets:
+            if unicodedata.normalize("NFC", s.name) == want:
+                return s
+    raise SheetIndexError(f"sheet {sheet!r} not found in {book.name!r}")
 
 
 def _used_dims(ws: Any) -> tuple[int, int]:
@@ -649,6 +659,47 @@ def format_range(
         rng.font.color = _rgb(font_color)
 
 
+def color_rows_where(
+    workbook_id: str | None,
+    sheet: int | str,
+    condition_col: int,
+    match_value: str,
+    color: Any,
+    target_col0: int,
+    target_col1: int,
+    data_start_row: int = 0,
+    contains: bool = False,
+    clear_non_matching: bool = True,
+) -> dict[str, Any]:
+    """조건 열(condition_col, 0-based)의 값이 match_value인 데이터 행을 찾아 대상
+    열 범위(target_col0..target_col1)를 color로 칠한다. **에이전트가 행 번호를
+    손으로 짚지 않고 '조건에 맞는 행'을 한 번에** 처리해, 헤더가 복잡한 실무 표에서
+    행이 어긋나거나 일부만 칠해지는 사고를 막는다. clear_non_matching이면 대상 열
+    범위의 기존 채우기를 먼저 지우고(정확·빠름) 매칭 행만 칠한다. contains면 부분일치.
+    data_start_row(0-based)로 헤더 아래 첫 데이터 행을 지정한다."""
+    ws = _sheet(workbook_id, sheet)
+    rows, cols = _used_dims(ws)
+    if rows <= data_start_row:
+        return {"matched_rows": 0, "scanned": 0}
+    col_vals = ws.range(
+        (data_start_row + 1, condition_col + 1), (rows, condition_col + 1)
+    ).options(ndim=2).value
+    rgb = _rgb(color)
+    if clear_non_matching:
+        ws.range((data_start_row + 1, target_col0 + 1), (rows, target_col1 + 1)).color = None
+    matched: list[int] = []
+    target = str(match_value).strip()
+    for i, rv in enumerate(col_vals):
+        v = rv[0] if rv else None
+        sv = "" if v is None else str(v).strip()
+        hit = (target in sv) if contains else (sv == target)
+        if hit:
+            r = data_start_row + i
+            ws.range((r + 1, target_col0 + 1), (r + 1, target_col1 + 1)).color = rgb
+            matched.append(r + 1)  # 1-based 행 번호
+    return {"matched_rows": len(matched), "scanned": len(col_vals), "rows_1based": matched}
+
+
 # ---- 구조/서식 일반 기능(숫자서식·병합·정렬·자동맞춤·크기·지우기) ----
 # "엑셀에 침투했으면 전체 기능을 다 쓸 수 있어야 한다"는 요구에 맞춰, 셀 값
 # 편집을 넘어 실무에서 자주 쓰는 통합문서 조작을 폭넓게 노출한다. 전부 xlwings
@@ -746,3 +797,229 @@ def sort_range(workbook_id: str | None, sheet: int | str,
     except Exception as e:
         _translate_excel_error(e)
         raise
+
+
+# ---- 구조 편집(행·열 삽입/삭제·복사·표시) ----
+# 전부 원본 비파괴: 값을 다시 써넣지 않고 Excel 네이티브 조작으로 옮기므로
+# 기존 수식/서식/병합이 그대로 따라 이동한다.
+
+
+def _col_letter(idx0: int) -> str:
+    """0-based 열 인덱스 → 'A','B',...,'AA' 열 문자."""
+    n = idx0 + 1
+    s = ""
+    while n > 0:
+        n, r = divmod(n - 1, 26)
+        s = chr(65 + r) + s
+    return s
+
+
+def insert_rows(workbook_id: str | None, sheet: int | str, before_row: int, count: int = 1) -> None:
+    """before_row(0-based) 위치에 빈 행 count개를 삽입한다. 아래 데이터는
+    수식/서식째 밀려 내려간다(원본 비파괴)."""
+    ws = _sheet(workbook_id, sheet)
+    r = before_row + 1
+    ws.range(f"{r}:{r + count - 1}").insert("down")
+
+
+def delete_rows(workbook_id: str | None, sheet: int | str, row: int, count: int = 1) -> None:
+    """row(0-based)부터 count개 행을 삭제한다. 아래 데이터가 위로 당겨진다."""
+    ws = _sheet(workbook_id, sheet)
+    r = row + 1
+    ws.range(f"{r}:{r + count - 1}").delete("up")
+
+
+def insert_columns(workbook_id: str | None, sheet: int | str, before_col: int, count: int = 1) -> None:
+    """before_col(0-based) 위치에 빈 열 count개를 삽입한다. 오른쪽 데이터는
+    수식/서식째 밀려난다(원본 비파괴)."""
+    ws = _sheet(workbook_id, sheet)
+    a, b = _col_letter(before_col), _col_letter(before_col + count - 1)
+    ws.range(f"{a}:{b}").insert("right")
+
+
+def delete_columns(workbook_id: str | None, sheet: int | str, col: int, count: int = 1) -> None:
+    """col(0-based)부터 count개 열을 삭제한다. 오른쪽 데이터가 왼쪽으로 당겨진다."""
+    ws = _sheet(workbook_id, sheet)
+    a, b = _col_letter(col), _col_letter(col + count - 1)
+    ws.range(f"{a}:{b}").delete("left")
+
+
+def copy_range(workbook_id: str | None, sheet: int | str,
+               row0: int, col0: int, row1: int, col1: int,
+               dest_row: int, dest_col: int, dest_sheet: int | str | None = None) -> None:
+    """범위를 다른 위치(같은/다른 시트)로 복사한다. 값·수식·서식이 함께 복사되며
+    수식의 상대참조는 붙여넣는 위치에 맞게 자동 조정된다."""
+    src = _rng(workbook_id, sheet, row0, col0, row1, col1)
+    dws = _sheet(workbook_id, dest_sheet if dest_sheet is not None else sheet)
+    src.copy(dws.range((dest_row + 1, dest_col + 1)))
+
+
+def set_rows_visible(workbook_id: str | None, sheet: int | str,
+                     row0: int, row1: int, visible: bool) -> None:
+    """row0..row1(0-based, 포함) 행을 숨기거나(visible=False) 다시 보이게 한다."""
+    ws = _sheet(workbook_id, sheet)
+    rng = ws.range(f"{row0 + 1}:{row1 + 1}")
+    if platform.system() == "Windows":
+        rng.api.EntireRow.Hidden = (not visible)
+    else:
+        rng.api.entire_row.hidden.set(not visible)
+
+
+def set_columns_visible(workbook_id: str | None, sheet: int | str,
+                        col0: int, col1: int, visible: bool) -> None:
+    """col0..col1(0-based, 포함) 열을 숨기거나(visible=False) 다시 보이게 한다."""
+    ws = _sheet(workbook_id, sheet)
+    rng = ws.range(f"{_col_letter(col0)}:{_col_letter(col1)}")
+    if platform.system() == "Windows":
+        rng.api.EntireColumn.Hidden = (not visible)
+    else:
+        rng.api.entire_column.hidden.set(not visible)
+
+
+# ---- 수식/이름/재계산 ----
+
+
+def recalculate(workbook_id: str | None = None) -> None:
+    """모든 수식을 강제로 재계산한다(자동계산이 꺼져 있거나 값이 안 갱신될 때)."""
+    _resolve_book(workbook_id).app.calculate()
+
+
+def define_name(workbook_id: str | None, name: str, refers_to: str) -> None:
+    """이름 정의를 추가한다. refers_to는 '=시트!$A$1:$A$10' 형식의 참조."""
+    _resolve_book(workbook_id).names.add(name, refers_to)
+
+
+def list_names(workbook_id: str | None = None) -> list[dict[str, Any]]:
+    """통합문서에 정의된 이름 목록(이름·참조)을 돌려준다."""
+    book = _resolve_book(workbook_id)
+    out: list[dict[str, Any]] = []
+    for n in book.names:
+        try:
+            refers = n.refers_to
+        except Exception:
+            refers = None
+        out.append({"name": n.name, "refers_to": refers})
+    return out
+
+
+def delete_name(workbook_id: str | None, name: str) -> None:
+    """정의된 이름을 삭제한다."""
+    _resolve_book(workbook_id).names[name].delete()
+
+
+# ---- 테두리/틀고정/찾기·바꾸기/유효성/자동필터 ----
+
+_BORDER_WHICH = {
+    "all": ("top", "bottom", "left", "right", "inside_h", "inside_v"),
+    "outline": ("top", "bottom", "left", "right"),
+    "top": ("top",), "bottom": ("bottom",), "left": ("left",), "right": ("right",),
+}
+
+
+def set_borders(workbook_id: str | None, sheet: int | str,
+                row0: int, col0: int, row1: int, col1: int,
+                which: str = "all", style: str = "thin") -> None:
+    """범위에 테두리를 긋는다. which='all'(격자 전체)/'outline'(바깥만)/개별 변,
+    style='thin'/'medium'/'thick'. 검정 실선."""
+    rng = _rng(workbook_id, sheet, row0, col0, row1, col1)
+    edges = _BORDER_WHICH.get(which, _BORDER_WHICH["all"])
+    if platform.system() == "Windows":
+        idx = {"left": 7, "top": 8, "bottom": 9, "right": 10, "inside_v": 11, "inside_h": 12}
+        weight = {"thin": 2, "medium": -4138, "thick": 4}.get(style, 2)
+        for e in edges:
+            b = rng.api.Borders(idx[e])
+            b.LineStyle = 1  # xlContinuous
+            b.Weight = weight
+        return
+    import appscript  # type: ignore[import-not-found]
+    from appscript import k as appk  # type: ignore[import-not-found]
+    weight = {
+        "thin": appk.border_weight_thin,
+        "medium": appk.border_weight_medium,
+        "thick": appk.border_weight_thick,
+    }.get(style, appk.border_weight_thin)
+    edge_k = {
+        "top": appk.edge_top, "bottom": appk.edge_bottom,
+        "left": appk.edge_left, "right": appk.edge_right,
+        "inside_h": appk.inside_horizontal, "inside_v": appk.inside_vertical,
+    }
+    for e in edges:
+        b = rng.api.get_border(which_border=edge_k[e])
+        b.line_style.set(appk.continuous)
+        b.weight.set(weight)
+
+
+def freeze_panes(workbook_id: str | None, sheet: int | str, rows: int = 1, cols: int = 0) -> None:
+    """상단 rows개 행 / 좌측 cols개 열을 고정한다(스크롤해도 안 움직임).
+    rows=0 이고 cols=0 이면 고정을 해제한다. 헤더 1줄 고정은 rows=1, cols=0."""
+    ws = _sheet(workbook_id, sheet)
+    ws.activate()
+    book = _resolve_book(workbook_id)
+    off = (rows <= 0 and cols <= 0)
+    if platform.system() == "Windows":
+        win = book.app.api.ActiveWindow
+        if off:
+            win.FreezePanes = False
+            return
+        ws.range((rows + 1, cols + 1)).select()
+        win.FreezePanes = True
+        return
+    win = book.app.api.active_window
+    if off:
+        win.freeze_panes.set(False)
+        return
+    ws.range((rows + 1, cols + 1)).select()
+    win.freeze_panes.set(True)
+
+
+def find_replace(workbook_id: str | None, sheet: int | str,
+                 find: str, replace: str, match_case: bool = False) -> None:
+    """시트의 사용 범위에서 find를 replace로 모두 바꾼다."""
+    ws = _sheet(workbook_id, sheet)
+    if platform.system() == "Windows":
+        ws.api.UsedRange.Replace(What=find, Replacement=replace,
+                                 LookAt=2, MatchCase=match_case)  # 2=xlPart
+        return
+    ws.api.used_range.replace(what=find, replacement=replace, match_case=match_case)
+
+
+def set_data_validation_list(workbook_id: str | None, sheet: int | str,
+                             row0: int, col0: int, row1: int, col1: int,
+                             values: list[str]) -> None:
+    """범위 셀에 드롭다운(목록) 유효성 검사를 건다. values의 항목만 고를 수 있다."""
+    rng = _rng(workbook_id, sheet, row0, col0, row1, col1)
+    joined = ",".join(str(v) for v in values)
+    if platform.system() == "Windows":
+        v = rng.api.Validation
+        try:
+            v.Delete()
+        except Exception:
+            pass
+        v.Add(Type=3, Formula1=joined)  # 3=xlValidateList
+        return
+    from appscript import k as appk  # type: ignore[import-not-found]
+    try:
+        rng.api.validation.delete()
+    except Exception:
+        pass
+    rng.api.validation.modify(type=appk.validate_list, formula1=joined)
+
+
+def set_autofilter(workbook_id: str | None, sheet: int | str,
+                   row0: int, col0: int, row1: int, col1: int, on: bool = True) -> None:
+    """범위에 자동필터를 켜거나(on=True) 끈다. **Windows 전용** - macOS Excel은
+    appscript로 자동필터 적용이 노출되지 않는다."""
+    if platform.system() != "Windows":
+        raise RuntimeError(
+            "macOS Excel은 자동필터 적용을 appscript로 지원하지 않습니다. "
+            "정렬(sort_range)이나 조건부 강조(color_rows_where)로 대체하거나 "
+            "Windows에서 실행하세요."
+        )
+    ws = _sheet(workbook_id, sheet)
+    rng = _rng(workbook_id, sheet, row0, col0, row1, col1)
+    if on:
+        if not ws.api.AutoFilterMode:
+            rng.api.AutoFilter()
+    else:
+        if ws.api.AutoFilterMode:
+            ws.api.AutoFilterMode = False
