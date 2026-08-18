@@ -160,7 +160,7 @@ lo.set_cell(doc, sheet=0, row=1, col=2, value="1500")
 lo.save(doc)
 ```
 
-## 노출되는 도구 (29개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
+## 노출되는 도구 (37개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
 
 **Excel(열려 있는 통합문서)**
 
@@ -176,7 +176,13 @@ lo.save(doc)
 | `list_live_sheets` | 시트 목록(순서·이름) |
 | `add_live_sheet` | 새 시트 추가(이름·위치 지정 가능, 기본은 맨 뒤) |
 | `rename_live_sheet` / `delete_live_sheet` | 시트 이름변경 / 삭제 |
-| `move_live_sheet` | 시트 위치 이동(재정렬) |
+| `move_live_sheet` | 시트 위치 이동(재정렬, Excel 네이티브 - 서식·수식 보존) |
+| `set_live_fill_color` | 셀 범위 배경색 칠하기(조건부 행 강조 등). '노란색'/'#FFFF00' |
+| `format_live_range` | 채우기색·굵게·글자색 한 번에 |
+| `set_live_number_format` | 표시 형식(천단위·백분율·날짜·통화 등). **값은 안 바꿈** |
+| `merge_live_cells` / `unmerge_live_cells` | 셀 병합 / 해제 |
+| `autofit_live` | 열 너비·행 높이를 내용에 맞춤 |
+| `set_live_column_width` / `set_live_row_height` | 열 너비 / 행 높이 지정 |
 
 **LibreOffice(Excel 없는 환경, xlsx 파일을 직접 지정해서 연다)**
 

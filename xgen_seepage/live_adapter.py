@@ -559,3 +559,176 @@ def move_sheet(
     except Exception as e:
         _translate_excel_error(e)
         raise
+
+
+# ---- 서식(채우기 색/굵게/글자색) ----
+# "결함조치완료인 행만 노란색으로 색칠" 같은 요청을 하려면 값 편집만으로는
+# 안 되고 셀 서식을 바꾸는 도구가 있어야 한다.
+_NAMED_COLORS = {
+    "yellow": (255, 255, 0), "노랑": (255, 255, 0), "노란색": (255, 255, 0),
+    "red": (255, 0, 0), "빨강": (255, 0, 0), "빨간색": (255, 0, 0),
+    "green": (0, 176, 80), "초록": (0, 176, 80), "초록색": (0, 176, 80),
+    "blue": (0, 112, 192), "파랑": (0, 112, 192), "파란색": (0, 112, 192),
+    "orange": (255, 192, 0), "주황": (255, 192, 0),
+    "gray": (191, 191, 191), "grey": (191, 191, 191), "회색": (191, 191, 191),
+    "white": (255, 255, 255), "흰색": (255, 255, 255),
+    "black": (0, 0, 0), "검정": (0, 0, 0),
+}
+
+
+def _rgb(color: Any) -> tuple[int, int, int]:
+    """색 입력을 (r,g,b)로 정규화한다. `#RRGGBB`/`RRGGBB` 헥스, `(r,g,b)`,
+    또는 흔한 색 이름(yellow/노란색 등)을 받는다."""
+    if isinstance(color, (list, tuple)) and len(color) == 3:
+        return (int(color[0]), int(color[1]), int(color[2]))
+    s = str(color).strip().lower()
+    if s in _NAMED_COLORS:
+        return _NAMED_COLORS[s]
+    h = s.lstrip("#")
+    if len(h) == 6:
+        try:
+            return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+        except ValueError:
+            pass
+    raise ValueError(f"색상 형식을 알 수 없습니다: {color!r} (예: '#FFFF00' 또는 'yellow'/'노란색')")
+
+
+def set_fill_color(
+    workbook_id: str | None,
+    sheet: int | str,
+    row0: int,
+    col0: int,
+    row1: int,
+    col1: int,
+    color: Any,
+) -> None:
+    """직사각형 범위의 배경(채우기) 색을 칠한다. `color`가 None/'none'/''이면
+    채우기를 제거한다. 특정 행들만 칠하려면 각 행 범위로 여러 번 호출한다."""
+    ws = _sheet(workbook_id, sheet)
+    rng = ws.range((row0 + 1, col0 + 1), (row1 + 1, col1 + 1))
+    if color is None or str(color).strip().lower() in ("none", ""):
+        rng.color = None
+    else:
+        rng.color = _rgb(color)
+
+
+def format_range(
+    workbook_id: str | None,
+    sheet: int | str,
+    row0: int,
+    col0: int,
+    row1: int,
+    col1: int,
+    fill_color: Any = None,
+    bold: bool | None = None,
+    font_color: Any = None,
+) -> None:
+    """범위에 여러 서식을 한 번에 적용한다. 지정한 것만 바꾼다(None은 그대로).
+    fill_color='none'이면 채우기 제거."""
+    ws = _sheet(workbook_id, sheet)
+    rng = ws.range((row0 + 1, col0 + 1), (row1 + 1, col1 + 1))
+    if fill_color is not None:
+        rng.color = None if str(fill_color).strip().lower() in ("none", "") else _rgb(fill_color)
+    if bold is not None:
+        rng.font.bold = bool(bold)
+    if font_color is not None:
+        rng.font.color = _rgb(font_color)
+
+
+# ---- 구조/서식 일반 기능(숫자서식·병합·정렬·자동맞춤·크기·지우기) ----
+# "엑셀에 침투했으면 전체 기능을 다 쓸 수 있어야 한다"는 요구에 맞춰, 셀 값
+# 편집을 넘어 실무에서 자주 쓰는 통합문서 조작을 폭넓게 노출한다. 전부 xlwings
+# 로 Windows/macOS 공통 동작한다.
+
+
+def _rng(workbook_id: str | None, sheet: int | str, row0: int, col0: int, row1: int, col1: int) -> Any:
+    ws = _sheet(workbook_id, sheet)
+    return ws.range((row0 + 1, col0 + 1), (row1 + 1, col1 + 1))
+
+
+def set_number_format(workbook_id: str | None, sheet: int | str,
+                      row0: int, col0: int, row1: int, col1: int, format_code: str) -> None:
+    """범위의 표시 형식을 지정한다. 예: '#,##0'(천단위), '0.00%'(백분율),
+    'yyyy-mm-dd'(날짜), '₩#,##0'(원화), '@'(텍스트)."""
+    _rng(workbook_id, sheet, row0, col0, row1, col1).number_format = format_code
+
+
+def merge_cells(workbook_id: str | None, sheet: int | str,
+                row0: int, col0: int, row1: int, col1: int) -> None:
+    """범위를 하나로 병합한다(제목/헤더에 자주 씀)."""
+    _rng(workbook_id, sheet, row0, col0, row1, col1).merge()
+
+
+def unmerge_cells(workbook_id: str | None, sheet: int | str,
+                  row0: int, col0: int, row1: int, col1: int) -> None:
+    """병합을 해제한다."""
+    _rng(workbook_id, sheet, row0, col0, row1, col1).unmerge()
+
+
+def clear_range(workbook_id: str | None, sheet: int | str,
+                row0: int, col0: int, row1: int, col1: int,
+                contents: bool = True, formats: bool = False) -> None:
+    """범위를 지운다. contents=값/수식, formats=서식. 둘 다 True면 전부 지운다."""
+    rng = _rng(workbook_id, sheet, row0, col0, row1, col1)
+    if contents and formats:
+        rng.clear()
+    elif contents:
+        rng.clear_contents()
+    elif formats:
+        try:
+            rng.api.ClearFormats()  # Windows COM
+        except Exception:
+            try:
+                rng.api.clear_formats()  # macOS appscript
+            except Exception:
+                pass
+
+
+def autofit(workbook_id: str | None, sheet: int | str,
+            row0: int | None = None, col0: int | None = None,
+            row1: int | None = None, col1: int | None = None) -> None:
+    """열 너비/행 높이를 내용에 맞춘다. 범위를 안 주면 사용 범위 전체."""
+    ws = _sheet(workbook_id, sheet)
+    if row0 is None:
+        ws.used_range.autofit()
+    else:
+        ws.range((row0 + 1, col0 + 1), (row1 + 1, col1 + 1)).autofit()
+
+
+def set_column_width(workbook_id: str | None, sheet: int | str, col: int, width: float) -> None:
+    """열 너비를 지정한다(문자 단위)."""
+    _sheet(workbook_id, sheet).range((1, col + 1)).column_width = width
+
+
+def set_row_height(workbook_id: str | None, sheet: int | str, row: int, height: float) -> None:
+    """행 높이를 지정한다(포인트 단위)."""
+    _sheet(workbook_id, sheet).range((row + 1, 1)).row_height = height
+
+
+def sort_range(workbook_id: str | None, sheet: int | str,
+               row0: int, col0: int, row1: int, col1: int,
+               key_col: int, ascending: bool = True, has_header: bool = True) -> None:
+    """범위를 특정 열 기준으로 정렬한다. key_col은 시트 절대 열 인덱스(0-based).
+    **Excel 네이티브 정렬**을 써서 행 전체를 서식·수식까지 보존하며 재배치한다
+    (값만 다시 써넣어 수식/서식을 날리는 방식이 아니다 - 원본 비파괴)."""
+    ws = _sheet(workbook_id, sheet)
+    rng = ws.range((row0 + 1, col0 + 1), (row1 + 1, col1 + 1))
+    key = ws.range((row0 + 1, key_col + 1), (row1 + 1, key_col + 1))
+    if platform.system() == "Windows":
+        rng.api.Sort(
+            Key1=key.api,
+            Order1=1 if ascending else 2,   # 1=xlAscending, 2=xlDescending
+            Header=1 if has_header else 2,   # 1=xlYes, 2=xlNo
+            Orientation=1,                   # 1=xlSortRows
+        )
+        return
+    # macOS(appscript): Excel의 sort 명령. 행 전체를 보존하며 정렬한다.
+    try:
+        import appscript  # type: ignore[import-not-found]
+
+        order = appscript.k.sort_ascending if ascending else appscript.k.sort_descending
+        header = appscript.k.header_yes if has_header else appscript.k.header_no
+        rng.api.sort(key1=key.api, order1=order, header=header)
+    except Exception as e:
+        _translate_excel_error(e)
+        raise

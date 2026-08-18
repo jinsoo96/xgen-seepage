@@ -87,6 +87,56 @@ def move_live_sheet(workbook_id: str | None, sheet: int | str,
     return {"ok": True}
 
 
+def set_live_fill_color(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                        color: Any, workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_fill_color(workbook_id, sheet, row0, col0, row1, col1, color)
+    return {"ok": True}
+
+
+def format_live_range(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                      fill_color: Any = None, bold: bool | None = None, font_color: Any = None,
+                      workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.format_range(workbook_id, sheet, row0, col0, row1, col1, fill_color, bold, font_color)
+    return {"ok": True}
+
+
+def set_live_number_format(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                           format_code: str, workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_number_format(workbook_id, sheet, row0, col0, row1, col1, format_code)
+    return {"ok": True}
+
+
+def merge_live_cells(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                     workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.merge_cells(workbook_id, sheet, row0, col0, row1, col1)
+    return {"ok": True}
+
+
+def unmerge_live_cells(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                       workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.unmerge_cells(workbook_id, sheet, row0, col0, row1, col1)
+    return {"ok": True}
+
+
+def autofit_live(sheet: int | str, row0: int | None = None, col0: int | None = None,
+                 row1: int | None = None, col1: int | None = None,
+                 workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.autofit(workbook_id, sheet, row0, col0, row1, col1)
+    return {"ok": True}
+
+
+def set_live_column_width(sheet: int | str, col: int, width: float,
+                          workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_column_width(workbook_id, sheet, col, width)
+    return {"ok": True}
+
+
+def set_live_row_height(sheet: int | str, row: int, height: float,
+                        workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_row_height(workbook_id, sheet, row, height)
+    return {"ok": True}
+
+
 # -------- CSV(파일) 도구 --------
 
 
@@ -383,6 +433,90 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "set_live_fill_color",
+        "description": (
+            "셀 범위의 배경(채우기) 색을 칠한다. color는 '#FFFF00' 또는 'yellow'/'노란색' "
+            "같은 값. color를 'none'으로 주면 채우기 제거. 조건에 맞는 여러 행을 칠하려면 "
+            "각 행 범위(row0=row1=그 행)로 여러 번 호출한다. 예: '결함상태'가 '결함조치완료'인 "
+            "행을 노란색으로."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "sheet": {"description": "시트 인덱스 또는 이름"},
+                "row0": {"type": "integer"}, "col0": {"type": "integer"},
+                "row1": {"type": "integer"}, "col1": {"type": "integer"},
+                "color": {"description": "'#FFFF00' / 'yellow' / '노란색' 등, 또는 'none'(제거)"},
+            },
+            "required": ["sheet", "row0", "col0", "row1", "col1", "color"],
+        },
+    },
+    {
+        "name": "format_live_range",
+        "description": "범위에 채우기 색/굵게/글자색을 한 번에 적용한다. 지정한 것만 바꾼다.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "sheet": {"description": "시트 인덱스 또는 이름"},
+                "row0": {"type": "integer"}, "col0": {"type": "integer"},
+                "row1": {"type": "integer"}, "col1": {"type": "integer"},
+                "fill_color": {"description": "배경색('#FFFF00'/'yellow'/'none')"},
+                "bold": {"type": "boolean"},
+                "font_color": {"description": "글자색('#FF0000'/'red' 등)"},
+            },
+            "required": ["sheet", "row0", "col0", "row1", "col1"],
+        },
+    },
+    {
+        "name": "set_live_number_format",
+        "description": "범위의 표시 형식만 바꾼다(값은 그대로). 예: '#,##0'(천단위), '0.00%'(백분율), 'yyyy-mm-dd'(날짜), '₩#,##0'(원화), '@'(텍스트).",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"},
+            "format_code": {"type": "string"}},
+            "required": ["sheet", "row0", "col0", "row1", "col1", "format_code"]}},
+    {
+        "name": "merge_live_cells",
+        "description": "범위를 하나로 병합한다(제목/헤더용).",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"}},
+            "required": ["sheet", "row0", "col0", "row1", "col1"]}},
+    {
+        "name": "unmerge_live_cells",
+        "description": "병합을 해제한다.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"}},
+            "required": ["sheet", "row0", "col0", "row1", "col1"]}},
+    {
+        "name": "autofit_live",
+        "description": "열 너비/행 높이를 내용에 맞춘다. 범위를 안 주면 사용 범위 전체.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"}},
+            "required": ["sheet"]}},
+    {
+        "name": "set_live_column_width",
+        "description": "열 너비를 지정한다(문자 단위). col은 0-based 열 인덱스.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "col": {"type": "integer"}, "width": {"type": "number"}},
+            "required": ["sheet", "col", "width"]}},
+    {
+        "name": "set_live_row_height",
+        "description": "행 높이를 지정한다(포인트 단위). row는 0-based 행 인덱스.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row": {"type": "integer"}, "height": {"type": "number"}},
+            "required": ["sheet", "row", "height"]}},
+    {
         "name": "inspect_csv",
         "description": (
             "CSV 파일의 구조를 조사한다: 인코딩/구분자를 자동 감지하고 크기·헤더· "
@@ -640,6 +774,14 @@ TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "rename_live_sheet": rename_live_sheet,
     "delete_live_sheet": delete_live_sheet,
     "move_live_sheet": move_live_sheet,
+    "set_live_fill_color": set_live_fill_color,
+    "format_live_range": format_live_range,
+    "set_live_number_format": set_live_number_format,
+    "merge_live_cells": merge_live_cells,
+    "unmerge_live_cells": unmerge_live_cells,
+    "autofit_live": autofit_live,
+    "set_live_column_width": set_live_column_width,
+    "set_live_row_height": set_live_row_height,
     "inspect_csv": inspect_csv,
     "get_csv_cell": get_csv_cell,
     "set_csv_cell": set_csv_cell,
