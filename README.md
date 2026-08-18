@@ -66,21 +66,31 @@ xgen-seepage panel                 # 채팅 패널을 기본 브라우저로 연
 전환한다(그 서버에 토큰이 있으면 재로그인 없이). 지금 붙은 서버·계정은 패널
 헤더와 `xgen-seepage status`에서 확인된다.
 
-**폐쇄망용 (단일 설치파일, 인터넷 없는 머신)**: 인터넷 있는 머신에서 미리 하나로
-얼려서 `xgen-seepage-connector.exe`만 반입한다. 파이썬이 없는 Windows에서도 그대로
-실행된다(`.exe login`/`run`/`status`/`server list`/`logout`).
+**파이썬 없이 단일 실행파일로 (Windows·macOS)**: 대상 머신엔 파이썬이 필요 없다.
+빌드 머신(파이썬 있는 곳)에서 한 번 얼려서 그 실행파일 하나만 대상에 반입/복사하면
+`login`/`run`/`status`/`server list`/`install-excel-addin` 전부 그대로 돈다.
+폐쇄망이면 인터넷 있는 머신에서 미리 얼려 반입하면 된다.
 
-```powershell
+```bash
 git clone https://github.com/jinsoo96/xgen-seepage.git
 cd xgen-seepage
 pip install -e ".[live,build]"
 python -m PyInstaller packaging/xgen-seepage-connector.spec
-# 산출물: dist/xgen-seepage-connector.exe (스펙을 레포 루트에서 돌린 기준)
+# 산출물(스펙을 레포 루트에서 돌린 기준):
+#   Windows: dist/xgen-seepage-connector.exe
+#   macOS:   dist/xgen-seepage-connector   (Mach-O 단일 바이너리)
 ```
 
-빌드 머신이 conda 환경이면 스펙이 conda의 OpenSSL DLL(`Library\bin`)까지 챙겨
-번들한다(안 그러면 얼린 exe가 `_ssl` DLL 로드 실패로 XGEN에 못 붙는다. 일반
-venv에선 자동으로 무관).
+- **플랫폼별로 빌드해야 한다**(PyInstaller는 크로스컴파일이 안 됨): Windows용
+  exe는 Windows에서, macOS용 바이너리는 macOS에서 얼린다. 대상 OS와 같은 OS에서
+  빌드. 라이브(열린 Excel) 편집 의존성(Windows=pywin32, macOS=appscript)까지 함께
+  번들된다 - 실측으로 두 플랫폼 다 얼린 실행파일만으로 XGEN 로그인(HTTPS)이 되는 걸
+  확인했다.
+- **conda 빌드 함정(Windows)**: 빌드 머신이 conda면 스펙이 conda의 OpenSSL DLL
+  (`Library\bin`)까지 챙겨 번들한다. 안 그러면 얼린 exe가 `_ssl` DLL 로드 실패로
+  XGEN에 못 붙는다(일반 venv·macOS에선 자동으로 무관).
+- **macOS 첫 실행**: ad-hoc 서명이라 Gatekeeper가 막으면 최초 1회 우클릭 > 열기.
+  키체인·Excel 자동화 권한은 실행 시 macOS가 물어보면 허용.
 
 **폐쇄망 TLS(내부 CA)**: 폐쇄망 XGEN이 사내 내부 CA로 발급한 HTTPS 인증서를
 쓰더라도, 그 CA가 PC의 OS 신뢰 저장소에 설치돼 있으면(폐쇄망에선 GPO로 보통
