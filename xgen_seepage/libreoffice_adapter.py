@@ -22,6 +22,8 @@
 from __future__ import annotations
 
 import json
+import glob
+import platform
 import queue
 import socket
 import subprocess
@@ -46,30 +48,48 @@ _worker_proc: subprocess.Popen | None = None
 # (같은 스레드의 재진입) 일반 Lock이면 데드락난다.
 _worker_lock = threading.RLock()
 
-_CANDIDATE_INSTALL_DIRS = [
-    r"C:\Program Files\LibreOffice",
-    r"C:\Program Files (x86)\LibreOffice",
-]
-
-
-def _find_install_dir() -> Path | None:
-    for d in _CANDIDATE_INSTALL_DIRS:
-        p = Path(d)
-        if (p / "program" / "soffice.exe").exists():
+def _soffice_binary() -> Path | None:
+    """LibreOffice 실행파일 경로를 OS별로 찾는다(설치 구조가 플랫폼마다 다르다).
+    Windows=`<install>\\program\\soffice.exe`, macOS=`/Applications/
+    LibreOffice.app/Contents/MacOS/soffice`, Linux=`/usr/bin/soffice` 등."""
+    system = platform.system()
+    if system == "Windows":
+        for d in (r"C:\Program Files\LibreOffice", r"C:\Program Files (x86)\LibreOffice"):
+            p = Path(d) / "program" / "soffice.exe"
+            if p.exists():
+                return p
+    elif system == "Darwin":
+        p = Path("/Applications/LibreOffice.app/Contents/MacOS/soffice")
+        if p.exists():
             return p
+    else:  # Linux 등
+        for c in ("/usr/bin/soffice", "/usr/local/bin/soffice", "/opt/libreoffice/program/soffice"):
+            if Path(c).exists():
+                return Path(c)
+        for g in sorted(glob.glob("/opt/libreoffice*/program/soffice")):
+            return Path(g)
     return None
 
 
 def _find_python_exe() -> Path | None:
-    install = _find_install_dir()
-    if install is None:
+    """LibreOffice 번들 파이썬(UNO 워커 실행용). soffice 실행파일 위치 기준으로
+    OS별 상대 경로가 다르다."""
+    soffice = _soffice_binary()
+    if soffice is None:
         return None
-    py = install / "program" / "python.exe"
+    system = platform.system()
+    if system == "Windows":
+        py = soffice.parent / "python.exe"
+    elif system == "Darwin":
+        # .../Contents/MacOS/soffice → .../Contents/Resources/python
+        py = soffice.parent.parent / "Resources" / "python"
+    else:
+        py = soffice.parent / "python"
     return py if py.exists() else None
 
 
 def is_available() -> bool:
-    return _find_install_dir() is not None
+    return _soffice_binary() is not None
 
 
 def _port_open(port: int) -> bool:
@@ -82,13 +102,12 @@ def ensure_running(timeout: float = 20.0) -> None:
     """UNO 리스너가 떠 있지 않으면 헤드리스로 기동한다."""
     if _port_open(_PORT):
         return
-    install = _find_install_dir()
-    if install is None:
+    soffice = _soffice_binary()
+    if soffice is None:
         raise ExcelUnavailableError(
             "LibreOffice가 설치돼 있지 않습니다. Excel도 LibreOffice도 없어 "
             "라이브 편집 백엔드를 쓸 수 없습니다."
         )
-    soffice = install / "program" / "soffice.exe"
     accept = f"socket,host={_HOST},port={_PORT};urp;StarOffice.ComponentContext"
     subprocess.Popen(
         [

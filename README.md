@@ -36,6 +36,12 @@
 로컬 Excel. Excel이 없어도 CSV와 (LibreOffice가 있으면) xlsx 편집은 된다.
 인터넷은 설치 때만 필요하고, 운영은 XGEN 서버 연결만 있으면 된다(폐쇄망 OK).
 
+**macOS**: 열린 Excel 편집(라이브)은 macOS 자동화 권한이 한 번 필요하다. 처음
+`xgen-seepage run` 후 에이전트가 Excel을 만지려 하면 "터미널이 Microsoft Excel을
+제어하려 합니다" 창이 뜨는데 '확인'을 누르면 된다(또는 [시스템 설정 > 개인정보
+보호 및 보안 > 자동화]에서 직접 허용). Windows의 COM처럼 Mac은 AppleScript로
+붙는데, 이 권한 없이는 OS가 막는다.
+
 **어느 머신에서든 설치 (GitHub에서 바로):**
 
 ```bash

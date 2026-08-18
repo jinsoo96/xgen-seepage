@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.15.0 (2026-08-18)
+
+**macOS 지원 - 실제 Mac(Apple Silicon, Excel 설치)에서 세팅하며 이슈를 잡았다.**
+지금까지 Windows에서만 검증됐고 macOS 경로는 "미검증"이었는데, 실제 Mac에
+설치해 보니 Windows 전용 코드가 여러 곳 있었다. OS별로 갈라 고치고, 고칠 수
+있는 건 그 Mac에서 실측했다.
+
+- **인증서 신뢰**: `certs.py`가 `certutil`(Windows)뿐이었다 → macOS는
+  `security add-trusted-cert`로 로그인 키체인에 신뢰 등록. 실측: 인증서가
+  로그인 키체인에 실제 등록됨.
+- **리본 애드인 설치**: `install-excel-addin`이 Windows 레지스트리 전용이라
+  Mac에선 "윈도우 전용"으로 빠졌다 → macOS는 매니페스트를
+  `~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/`에 사이드로드.
+  실측: 매니페스트가 올바른 라벨로 그 폴더에 설치됨.
+- **LibreOffice 탐색**: `soffice.exe`(Windows 경로)만 찾았다 → macOS
+  (`/Applications/LibreOffice.app/Contents/MacOS/soffice`)·Linux 경로 추가.
+- **live_adapter(열린 Excel 편집)**: COM 전용 코드를 크로스플랫폼으로. `saved`
+  판정을 방어적으로(COM `Saved` → appscript `saved` → 안전 폴백), 병합 감지는
+  COM 속성 의존이라 non-Windows에선 건너뛴다(일반 셀 읽기/쓰기는 그대로).
+- **macOS 자동화 권한(TCC) 안내**: Mac은 Excel 제어에 자동화 권한이 필요한데,
+  없으면 xlwings가 raw appscript 오류(-1743)로 죽었다 → "[시스템 설정 > 개인정보
+  보호 및 보안 > 자동화]에서 Excel 제어를 허용하세요"라는 실행 가능한 메시지로
+  바꿈. 실측: 권한 없는 상태에서 그 안내가 뜬다.
+- 로그인/TLS(truststore OS 신뢰)도 실제 Mac에서 dev-xgen 200 OK로 확인.
+
 ## 0.14.3 (2026-08-17)
 
 **폐쇄망 내부 CA 대응 - OS 신뢰 저장소로 TLS 검증(설치파일 활용의 핵심).**

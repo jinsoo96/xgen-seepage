@@ -13,4 +13,4 @@
 CLI). xgen-connector(PlateerLab)가 설치돼 있을 필요는 없다.
 """
 
-__version__ = "0.14.3"
+__version__ = "0.15.0"

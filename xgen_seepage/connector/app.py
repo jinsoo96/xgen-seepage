@@ -310,23 +310,36 @@ async def cmd_chat_workflow_set(args: argparse.Namespace) -> int:
 
 
 _WEF_DEVELOPER_KEY = r"HKCU\Software\Microsoft\Office\16.0\WEF\Developer"
+# macOS Excel의 개발자 사이드로드 폴더. Excel for Mac은 여기 있는 매니페스트를
+# 클라우드/스토어 없이 로컬로 읽는다(폐쇄망 OK). 컨테이너는 Excel이 한 번이라도
+# 실행된 뒤 생긴다.
+_MAC_WEF_MANIFEST_NAME = "xgen-seepage.manifest.xml"
+
+
+def _macos_wef_dir() -> Path:
+    return (
+        Path.home() / "Library" / "Containers" / "com.microsoft.Excel"
+        / "Data" / "Documents" / "wef"
+    )
 
 
 async def cmd_install_excel_addin(args: argparse.Namespace) -> int:
     """Excel 리본에 XGEN 버튼(태스크팬 채팅)을 띄운다. **폐쇄망에서 동작한다** -
-    Microsoft 클라우드(스토어/애드인 삽입 서비스)를 전혀 안 거치는, 완전히
-    로컬인 개발자 레지스트리 사이드로드다. 실측(2026-08-17, 실제 Office 2021
-    볼륨 라이선스)으로 이 방식이 리본에 버튼을 실제로 띄우는 걸 확인했다
-    (클라우드 애드인 삽입 대화상자는 폐쇄망/구형 빌드에서 콘텐츠를 못 그려
-    못 쓴다 - 이건 그 경로를 안 탄다).
+    Microsoft 클라우드(스토어/애드인 삽입 서비스)를 전혀 안 거치는, 완전히 로컬인
+    개발자 사이드로드다. 실측(2026-08-17, 실제 Office 2021 볼륨)으로 이 방식이
+    리본에 버튼을 실제로 띄우는 걸 확인했다(클라우드 애드인 삽입 대화상자는
+    폐쇄망/구형 빌드에서 콘텐츠를 못 그려 못 쓴다 - 이건 그 경로를 안 탄다).
 
-    하는 일: (1) 자체서명 인증서 생성 + 신뢰 등록(WebView2가 로컬 HTTPS
-    페이지를 경고 없이 로드하도록), (2) 매니페스트를 실제 포트로 패치해 로컬에
-    설치, (3) `HKCU\\...\\WEF\\Developer`에 매니페스트 경로를 등록. 값 이름도
-    매니페스트 경로여야 한다(실측: 이름을 다른 문자열로 넣으면 Office가 안
-    읽는다)."""
-    if platform.system() != "Windows":
-        print("Excel 리본 애드인 설치는 Windows에서만 됩니다.", file=sys.stderr)
+    하는 일: (1) 자체서명 인증서 생성 + 신뢰 등록(로컬 HTTPS 패널을 경고 없이
+    로드하도록), (2) 매니페스트를 실제 포트로 패치해 로컬에 설치, (3) OS별
+    사이드로드 등록.
+      - Windows: `HKCU\\...\\WEF\\Developer`에 매니페스트 경로 등록(값 이름도
+        경로여야 한다 - 실측: 이름을 다른 문자열로 넣으면 Office가 안 읽는다).
+      - macOS: 매니페스트를 Excel의 `~/Library/Containers/com.microsoft.Excel/
+        Data/Documents/wef/`에 복사(Excel for Mac 개발자 사이드로드 경로)."""
+    system = platform.system()
+    if system not in ("Windows", "Darwin"):
+        print("Excel 리본 애드인 설치는 Windows/macOS에서만 됩니다.", file=sys.stderr)
         return 1
     cfg = cfgmod.load_config()
     src = Path(__file__).resolve().parent.parent / "taskpane" / "manifest.xml"
@@ -334,28 +347,42 @@ async def cmd_install_excel_addin(args: argparse.Namespace) -> int:
         print(f"매니페스트를 찾을 수 없습니다: {src}", file=sys.stderr)
         return 1
 
-    # 인증서 생성 + 신뢰(대화형 데스크톱 세션이면 성공. WebView2가 로컬
-    # HTTPS를 경고 없이 로드하려면 필요하다).
+    # 인증서 생성 + 신뢰(대화형 데스크톱 세션이면 성공. 로컬 HTTPS 패널을 경고
+    # 없이 로드하려면 필요하다).
     certs.ensure_dev_certificate(cfgmod.config_dir())
 
     # 매니페스트의 포트를 실제 설정 포트로 맞춰 로컬에 설치.
     text = src.read_text(encoding="utf-8").replace(
         "127.0.0.1:51837", f"127.0.0.1:{cfg.taskpane_port}"
     )
-    dst_dir = cfgmod.config_dir() / "excel-addin"
-    dst_dir.mkdir(parents=True, exist_ok=True)
-    dst = dst_dir / "manifest.xml"
-    dst.write_text(text, encoding="utf-8")
 
-    # 개발자 사이드로드 레지스트리(값 이름=값 데이터=매니페스트 경로).
-    result = subprocess.run(
-        ["reg", "add", _WEF_DEVELOPER_KEY, "/v", str(dst), "/t", "REG_SZ", "/d", str(dst), "/f"],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        print(f"레지스트리 등록 실패: {result.stderr.strip()}", file=sys.stderr)
-        return 1
+    if system == "Windows":
+        dst_dir = cfgmod.config_dir() / "excel-addin"
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        dst = dst_dir / "manifest.xml"
+        dst.write_text(text, encoding="utf-8")
+        # 개발자 사이드로드 레지스트리(값 이름=값 데이터=매니페스트 경로).
+        result = subprocess.run(
+            ["reg", "add", _WEF_DEVELOPER_KEY, "/v", str(dst), "/t", "REG_SZ", "/d", str(dst), "/f"],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            print(f"레지스트리 등록 실패: {result.stderr.strip()}", file=sys.stderr)
+            return 1
+    else:  # Darwin
+        wef = _macos_wef_dir()
+        try:
+            wef.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            print(
+                f"Excel 사이드로드 폴더를 만들 수 없습니다({e}). Excel for Mac을 "
+                "최소 한 번은 실행한 적이 있어야 합니다.",
+                file=sys.stderr,
+            )
+            return 1
+        (wef / _MAC_WEF_MANIFEST_NAME).write_text(text, encoding="utf-8")
+
     print("Excel 리본 애드인 설치 완료.")
     print("Excel을 껐다 다시 켜면 홈 탭 오른쪽 'XGEN' 그룹에 'xgen-seepage' 버튼이 뜹니다.")
     print("버튼을 누르면 채팅 패널이 열립니다(`xgen-seepage run`이 켜져 있어야 함).")
@@ -364,11 +391,19 @@ async def cmd_install_excel_addin(args: argparse.Namespace) -> int:
 
 
 async def cmd_uninstall_excel_addin(_args: argparse.Namespace) -> int:
-    if platform.system() != "Windows":
-        print("Windows에서만 됩니다.", file=sys.stderr)
+    system = platform.system()
+    if system == "Windows":
+        dst = cfgmod.config_dir() / "excel-addin" / "manifest.xml"
+        subprocess.run(["reg", "delete", _WEF_DEVELOPER_KEY, "/v", str(dst), "/f"], capture_output=True)
+    elif system == "Darwin":
+        m = _macos_wef_dir() / _MAC_WEF_MANIFEST_NAME
+        try:
+            m.unlink()
+        except FileNotFoundError:
+            pass
+    else:
+        print("Windows/macOS에서만 됩니다.", file=sys.stderr)
         return 1
-    dst = cfgmod.config_dir() / "excel-addin" / "manifest.xml"
-    subprocess.run(["reg", "delete", _WEF_DEVELOPER_KEY, "/v", str(dst), "/f"], capture_output=True)
     print("Excel 리본 애드인을 제거했습니다(Excel 재시작 후 반영).")
     return 0
 

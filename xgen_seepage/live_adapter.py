@@ -27,6 +27,7 @@ xlwings Range라는 점만 다르다.
 """
 from __future__ import annotations
 
+import platform
 from typing import Any
 
 from ._cellfmt import cell_text, coerce_for_write
@@ -62,8 +63,47 @@ def _require_xlwings() -> Any:
     return xw
 
 
+_MAC_TCC_MSG = (
+    "macOS 자동화 권한이 없어 Excel을 제어할 수 없습니다. [시스템 설정 > 개인정보 "
+    "보호 및 보안 > 자동화]에서, xgen-seepage(또는 이걸 실행한 터미널 앱)가 "
+    "'Microsoft Excel' 제어를 허용하도록 켠 뒤 다시 시도하세요. 처음 실행할 때 "
+    "권한 요청 창이 뜨면 '확인'을 누르면 됩니다."
+)
+
+
+def _translate_excel_error(exc: Exception) -> None:
+    """macOS 자동화 권한 거부(Apple Event 오류 -1743)를 실행 가능한 안내로 바꿔
+    다시 던진다. 그 외 예외엔 아무것도 안 한다(호출자가 원래 예외를 그대로
+    올린다). 권한이 없으면 xlwings가 Excel에 Apple Event를 보내는 첫 순간부터
+    raw appscript CommandError로 막히는데, 알아볼 수 없는 트레이스백 대신 뭘
+    해야 하는지 알려주기 위함이다(macOS 최대 함정)."""
+    s = str(exc).lower()
+    if "-1743" in s or "declined permission" in s or "not permitted" in s:
+        raise ExcelUnavailableError(_MAC_TCC_MSG) from exc
+
+
 def _workbook_id(app: Any, book: Any) -> str:
     return f"{app.pid}:{book.name}"
+
+
+def _book_saved(book: Any) -> bool:
+    """통합문서에 저장되지 않은 변경이 없는지(=Saved). xlwings Book 래퍼엔
+    `.saved`가 없어 raw 네이티브 객체(`book.api`)로 접근하는데, 그 속성이
+    플랫폼마다 다르다: Windows COM은 `Saved`(bool 속성), macOS는 xlwings가
+    appscript 참조를 주므로 `saved`(참조 → `.get()`)다. 어느 쪽도 안 되면
+    안전하게 False(변경 있음으로 간주)로 떨어진다 - 이 값은 정보용이라
+    core 편집 동작에는 영향이 없다."""
+    api = book.api
+    for getter in (
+        lambda: api.Saved,        # Windows COM
+        lambda: api.saved.get(),  # macOS appscript 참조
+        lambda: api.saved,        # 혹시 값으로 감싸주는 경우
+    ):
+        try:
+            return bool(getter())
+        except Exception:
+            continue
+    return False
 
 
 def list_open_workbooks() -> list[WorkbookInfo]:
@@ -74,54 +114,59 @@ def list_open_workbooks() -> list[WorkbookInfo]:
     """
     xw_ = _require_xlwings()
     out: list[WorkbookInfo] = []
-    for app in xw_.apps:
-        try:
-            active = app.books.active
-            active_name = active.name if active else None
-        except Exception:
-            active_name = None
-        for book in app.books:
-            out.append(
-                WorkbookInfo(
-                    workbook_id=_workbook_id(app, book),
-                    name=book.name,
-                    full_path=book.fullname if book.fullname != book.name else None,
-                    app_pid=app.pid,
-                    sheets=[s.name for s in book.sheets],
-                    active_sheet=active_name,
-                    # 실측(2026-08-17, 실제 Excel/xlwings 0.36.16): xlwings의
-                    # Book 래퍼엔 `.saved` 프로퍼티가 없다(`.save()` 메서드만
-                    # 있음) - `AttributeError`. 진짜 Excel Application 객체
-                    # 모델의 `Workbook.Saved`는 실재하므로, xlwings가 감싸지
-                    # 않은 raw COM 객체(`book.api`)로 바로 접근한다.
-                    saved=bool(book.api.Saved),
+    try:
+        for app in xw_.apps:
+            try:
+                active = app.books.active
+                active_name = active.name if active else None
+            except Exception:
+                active_name = None
+            for book in app.books:
+                out.append(
+                    WorkbookInfo(
+                        workbook_id=_workbook_id(app, book),
+                        name=book.name,
+                        full_path=book.fullname if book.fullname != book.name else None,
+                        app_pid=app.pid,
+                        sheets=[s.name for s in book.sheets],
+                        active_sheet=active_name,
+                        saved=_book_saved(book),
+                    )
                 )
-            )
+    except Exception as e:
+        _translate_excel_error(e)  # macOS 권한 거부면 안내로 바꿔 던진다
+        raise
     return out
 
 
 def _resolve_book(workbook_id: str | None) -> Any:
     xw_ = _require_xlwings()
-    if workbook_id is None:
-        for app in xw_.apps:
-            book = app.books.active
-            if book is not None:
-                return book
-        raise WorkbookNotFoundError(
-            "열려 있는 통합문서가 없습니다. Excel에서 파일을 먼저 열어주세요."
-        )
-    pid_s, sep, name = workbook_id.partition(":")
-    if not sep:
-        raise WorkbookNotFoundError(f"잘못된 workbook_id 형식: {workbook_id!r}")
     try:
-        pid = int(pid_s)
-    except ValueError:
-        raise WorkbookNotFoundError(f"잘못된 workbook_id: {workbook_id!r}") from None
-    for app in xw_.apps:
-        if app.pid == pid:
-            for book in app.books:
-                if book.name == name:
+        if workbook_id is None:
+            for app in xw_.apps:
+                book = app.books.active
+                if book is not None:
                     return book
+            raise WorkbookNotFoundError(
+                "열려 있는 통합문서가 없습니다. Excel에서 파일을 먼저 열어주세요."
+            )
+        pid_s, sep, name = workbook_id.partition(":")
+        if not sep:
+            raise WorkbookNotFoundError(f"잘못된 workbook_id 형식: {workbook_id!r}")
+        try:
+            pid = int(pid_s)
+        except ValueError:
+            raise WorkbookNotFoundError(f"잘못된 workbook_id: {workbook_id!r}") from None
+        for app in xw_.apps:
+            if app.pid == pid:
+                for book in app.books:
+                    if book.name == name:
+                        return book
+    except WorkbookNotFoundError:
+        raise
+    except Exception as e:
+        _translate_excel_error(e)  # macOS 권한 거부면 안내로 바꿔 던진다
+        raise
     raise WorkbookNotFoundError(
         f"workbook_id {workbook_id!r}를 찾을 수 없습니다(창이 닫혔을 수 있음). "
         "list_open_workbooks로 다시 조회하세요."
@@ -155,6 +200,13 @@ def _merge_map(ws: Any, rows: int, cols: int) -> tuple[dict, dict, bool]:
     신호를 준다.
     """
     if rows <= 0 or cols <= 0:
+        return {}, {}, False
+    # 병합 감지는 COM 속성(MergeCells/MergeArea/Rows.Count/Row/Column)에 의존한다.
+    # macOS는 xlwings가 appscript 참조를 주는데 그 속성 이름이 다르고 동적 참조라
+    # `getattr(..., None)` 가드도 안 먹어 안전하지 않다. 지금은 non-Windows에서
+    # 병합 감지를 건너뛴다(병합 없음으로 간주) - 일반 셀 읽기/쓰기는 그대로
+    # 동작하고, 병합 anchor 리다이렉트만 macOS에서 빠진다(문서화된 제약).
+    if platform.system() != "Windows":
         return {}, {}, False
     used = ws.range((1, 1), (rows, cols))
     try:

@@ -137,13 +137,39 @@ def _trust_windows(cert_path: Path) -> bool:
         return False
 
 
+def _trust_macos(cert_path: Path) -> bool:
+    """macOS: `security add-trusted-cert`로 로그인 키체인에 신뢰 루트로 등록한다.
+    사용자 키체인(`-k login.keychain-db`) 대상이라 관리자 권한은 필요 없지만,
+    대화형 데스크톱 세션에서 로그인 암호 승인(GUI)이 한 번 필요할 수 있다
+    (`_trust_windows`의 certutil과 같은 성격). 실패해도 예외를 안 던지고 False -
+    인증서 자체는 유효하니 브라우저/Excel이 최초 1회 수동 신뢰하는 경로는 남는다.
+    `-r trustRoot`로 SSL 서버 인증서로 신뢰하게 한다."""
+    login_kc = Path.home() / "Library" / "Keychains" / "login.keychain-db"
+    try:
+        result = subprocess.run(
+            [
+                "security", "add-trusted-cert", "-r", "trustRoot",
+                "-k", str(login_kc), str(cert_path),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        return result.returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
+
 def ensure_dev_certificate(config_dir: Path) -> tuple[Path, Path]:
-    """유효한 (cert_path, key_path)를 반환한다. 없거나 곧 만료면 새로
-    생성하고, Windows에서는 신뢰 저장소 등록까지 시도한다."""
+    """유효한 (cert_path, key_path)를 반환한다. 없거나 곧 만료면 새로 생성하고,
+    OS별 신뢰 저장소 등록까지 시도한다(Windows=certutil, macOS=security)."""
     cert_path, key_path = _cert_paths(config_dir)
     if _is_still_valid(cert_path) and key_path.exists():
         return cert_path, key_path
     _generate(cert_path, key_path)
-    if platform.system() == "Windows":
+    system = platform.system()
+    if system == "Windows":
         _trust_windows(cert_path)
+    elif system == "Darwin":
+        _trust_macos(cert_path)
     return cert_path, key_path
