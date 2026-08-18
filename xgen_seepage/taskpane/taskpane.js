@@ -158,7 +158,10 @@ function handleEvent(eventName, data, assistantDiv) {
     } else if (t === "tool_result") {
       addMessage(`[도구 결과] ${data.tool_name || ""} 완료`, "tool");
     }
-    return assistantDiv;
+    // 답변 블록을 끊는다: 도구 호출 다음에 이어지는 답변 토큰이 도구 메시지
+    // 위의 기존 블록에 붙지 않고, 도구 아래에 새 블록으로 흐르게 한다(도구
+    // 활동은 발생 순서대로 위에, 최종 답변은 그 아래에).
+    return null;
   }
   if (eventName === "node_status") {
     return assistantDiv; // 상세 로그, 채팅창엔 안 보여줌
