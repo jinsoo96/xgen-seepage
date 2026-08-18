@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.16.0 (2026-08-18)
+
+**시트 관리 도구 추가.** 실사용에서 나온 구멍: 에이전트한테 "시트 하나 만들어"/
+"시트 옮겨" 하면 못 했다 - 셀 편집 도구만 있었지 시트 자체를 다루는 도구가
+없어서 에이전트가 "문서 생성해드릴까요" 같은 헛소리로 빠졌다. 시트 도구 5개를
+추가했다(총 24 → 29개).
+
+- `list_live_sheets`(목록), `add_live_sheet`(추가, 이름·위치 지정 가능·기본 맨 뒤),
+  `rename_live_sheet`, `delete_live_sheet`, `move_live_sheet`(재정렬).
+- 크로스플랫폼(Windows COM=`Move(Before/After)`, macOS appscript=`move(to=...)`).
+  실측(실제 Mac Excel): 추가·이름변경·이동(맨 앞으로)·삭제 전부 정상.
+
 ## 0.15.0 (2026-08-18)
 
 **macOS 지원 - 실제 Mac(Apple Silicon, Excel 설치)에서 세팅하며 이슈를 잡았다.**

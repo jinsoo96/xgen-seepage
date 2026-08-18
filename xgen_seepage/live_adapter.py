@@ -477,3 +477,85 @@ def activate(workbook_id: str | None, sheet: int | str | None = None,
     ws.activate()
     if row is not None and col is not None:
         ws.range((row + 1, col + 1)).select()
+
+
+# ---- 시트 관리(목록/추가/이름변경/삭제/이동) ----
+# 에이전트가 "시트 하나 만들어" / "시트 옮겨" 같은 요청을 실제로 수행하려면
+# 셀 편집만으로는 부족하다 - 시트 자체를 다루는 도구가 있어야 한다.
+
+
+def list_sheets(workbook_id: str | None = None) -> list[dict[str, Any]]:
+    """통합문서의 시트 목록(순서·이름). 0-based index."""
+    book = _resolve_book(workbook_id)
+    return [{"index": i, "name": s.name} for i, s in enumerate(book.sheets)]
+
+
+def add_sheet(
+    workbook_id: str | None = None,
+    name: str | None = None,
+    before: int | str | None = None,
+    after: int | str | None = None,
+) -> str:
+    """새 시트를 만든다. before/after로 위치를 줄 수 있고, 안 주면 맨 뒤에
+    붙인다(기존 시트 순서를 안 밀도록). 만들어진 시트 이름을 반환한다."""
+    book = _resolve_book(workbook_id)
+    kwargs: dict[str, Any] = {}
+    if name:
+        kwargs["name"] = name
+    if before is not None:
+        kwargs["before"] = book.sheets[before]
+    elif after is not None:
+        kwargs["after"] = book.sheets[after]
+    else:
+        n = len(book.sheets)
+        if n:
+            kwargs["after"] = book.sheets[n - 1]
+    try:
+        ws = book.sheets.add(**kwargs)
+    except Exception as e:
+        _translate_excel_error(e)
+        raise
+    return ws.name
+
+
+def rename_sheet(workbook_id: str | None, sheet: int | str, new_name: str) -> str:
+    """시트 이름을 바꾼다."""
+    ws = _sheet(workbook_id, sheet)
+    ws.name = new_name
+    return new_name
+
+
+def delete_sheet(workbook_id: str | None, sheet: int | str) -> None:
+    """시트를 삭제한다(마지막 한 장은 Excel이 삭제를 막는다)."""
+    ws = _sheet(workbook_id, sheet)
+    ws.delete()
+
+
+def move_sheet(
+    workbook_id: str | None,
+    sheet: int | str,
+    before: int | str | None = None,
+    after: int | str | None = None,
+) -> None:
+    """시트를 다른 위치로 이동(재정렬)한다. before 또는 after 중 하나로 대상
+    시트를 지정한다. xlwings에 크로스플랫폼 move가 없어 네이티브 객체로 옮긴다
+    (Windows COM=`Move(Before/After)`, macOS appscript=`move(to=...)`)."""
+    if before is None and after is None:
+        raise ValueError("before 또는 after로 이동 위치를 지정하세요.")
+    book = _resolve_book(workbook_id)
+    ws = book.sheets[sheet]
+    target = book.sheets[before] if before is not None else book.sheets[after]
+    if platform.system() == "Windows":
+        if before is not None:
+            ws.api.Move(Before=target.api)
+        else:
+            ws.api.Move(After=target.api)
+        return
+    # macOS(appscript): 대상 시트의 앞/뒤를 삽입 위치로 지정해 옮긴다.
+    # (appscript 참조의 `.before`/`.after`가 element-relative insertion location)
+    try:
+        loc = target.api.before if before is not None else target.api.after
+        ws.api.move(to=loc)
+    except Exception as e:
+        _translate_excel_error(e)
+        raise

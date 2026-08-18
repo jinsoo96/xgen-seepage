@@ -63,6 +63,30 @@ def activate_live_cell(workbook_id: str | None = None, sheet: int | str | None =
     return {"ok": True}
 
 
+def list_live_sheets(workbook_id: str | None = None) -> dict[str, Any]:
+    return {"sheets": live_adapter.list_sheets(workbook_id)}
+
+
+def add_live_sheet(workbook_id: str | None = None, name: str | None = None,
+                    before: int | str | None = None, after: int | str | None = None) -> dict[str, Any]:
+    return {"name": live_adapter.add_sheet(workbook_id, name, before, after)}
+
+
+def rename_live_sheet(workbook_id: str | None, sheet: int | str, new_name: str) -> dict[str, Any]:
+    return {"name": live_adapter.rename_sheet(workbook_id, sheet, new_name)}
+
+
+def delete_live_sheet(workbook_id: str | None, sheet: int | str) -> dict[str, Any]:
+    live_adapter.delete_sheet(workbook_id, sheet)
+    return {"ok": True}
+
+
+def move_live_sheet(workbook_id: str | None, sheet: int | str,
+                     before: int | str | None = None, after: int | str | None = None) -> dict[str, Any]:
+    live_adapter.move_sheet(workbook_id, sheet, before, after)
+    return {"ok": True}
+
+
 # -------- CSV(파일) 도구 --------
 
 
@@ -292,6 +316,70 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 "sheet": {"description": "시트 인덱스 또는 이름"},
                 "row": {"type": "integer"}, "col": {"type": "integer"},
             },
+        },
+    },
+    {
+        "name": "list_live_sheets",
+        "description": "열려 있는 통합문서의 시트 목록(순서·이름, 0-based index).",
+        "input_schema": {
+            "type": "object",
+            "properties": {"workbook_id": {"type": "string"}},
+        },
+    },
+    {
+        "name": "add_live_sheet",
+        "description": (
+            "통합문서에 새 시트를 추가한다. name으로 이름 지정 가능, "
+            "before/after(시트 인덱스나 이름)로 위치 지정. 안 주면 맨 뒤에 추가한다. "
+            "만들어진 시트 이름을 반환."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "name": {"type": "string", "description": "새 시트 이름(생략 시 기본 이름)"},
+                "before": {"description": "이 시트(인덱스 또는 이름) 앞에 삽입"},
+                "after": {"description": "이 시트(인덱스 또는 이름) 뒤에 삽입"},
+            },
+        },
+    },
+    {
+        "name": "rename_live_sheet",
+        "description": "시트 이름을 바꾼다.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "sheet": {"description": "시트 인덱스 또는 이름"},
+                "new_name": {"type": "string"},
+            },
+            "required": ["sheet", "new_name"],
+        },
+    },
+    {
+        "name": "delete_live_sheet",
+        "description": "시트를 삭제한다(마지막 한 장은 Excel이 삭제를 막는다).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "sheet": {"description": "시트 인덱스 또는 이름"},
+            },
+            "required": ["sheet"],
+        },
+    },
+    {
+        "name": "move_live_sheet",
+        "description": "시트를 다른 위치로 이동(재정렬)한다. before 또는 after로 대상 시트(인덱스나 이름)를 지정.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "sheet": {"description": "이동할 시트(인덱스 또는 이름)"},
+                "before": {"description": "이 시트 앞으로 이동"},
+                "after": {"description": "이 시트 뒤로 이동"},
+            },
+            "required": ["sheet"],
         },
     },
     {
@@ -547,6 +635,11 @@ TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "write_live_range": write_live_range,
     "append_live_row": append_live_row,
     "activate_live_cell": activate_live_cell,
+    "list_live_sheets": list_live_sheets,
+    "add_live_sheet": add_live_sheet,
+    "rename_live_sheet": rename_live_sheet,
+    "delete_live_sheet": delete_live_sheet,
+    "move_live_sheet": move_live_sheet,
     "inspect_csv": inspect_csv,
     "get_csv_cell": get_csv_cell,
     "set_csv_cell": set_csv_cell,

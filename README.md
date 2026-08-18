@@ -160,7 +160,7 @@ lo.set_cell(doc, sheet=0, row=1, col=2, value="1500")
 lo.save(doc)
 ```
 
-## 노출되는 도구 (24개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
+## 노출되는 도구 (29개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
 
 **Excel(열려 있는 통합문서)**
 
@@ -173,6 +173,10 @@ lo.save(doc)
 | `read_live_range` / `write_live_range` | 범위 벌크 읽기/쓰기(최대 50,000셀) |
 | `append_live_row` | 사용 범위 아래에 행 추가 |
 | `activate_live_cell` | Excel 창을 앞으로 + 셀 선택(에이전트가 뭘 보는지 사용자가 눈으로 확인) |
+| `list_live_sheets` | 시트 목록(순서·이름) |
+| `add_live_sheet` | 새 시트 추가(이름·위치 지정 가능, 기본은 맨 뒤) |
+| `rename_live_sheet` / `delete_live_sheet` | 시트 이름변경 / 삭제 |
+| `move_live_sheet` | 시트 위치 이동(재정렬) |
 
 **LibreOffice(Excel 없는 환경, xlsx 파일을 직접 지정해서 연다)**
 
