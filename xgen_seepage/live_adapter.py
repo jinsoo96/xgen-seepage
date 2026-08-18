@@ -703,7 +703,7 @@ def autofit(workbook_id: str | None, sheet: int | str,
             row1: int | None = None, col1: int | None = None) -> None:
     """열 너비/행 높이를 내용에 맞춘다. 범위를 안 주면 사용 범위 전체."""
     ws = _sheet(workbook_id, sheet)
-    if row0 is None:
+    if row0 is None or col0 is None or row1 is None or col1 is None:
         ws.used_range.autofit()
     else:
         ws.range((row0 + 1, col0 + 1), (row1 + 1, col1 + 1)).autofit()
