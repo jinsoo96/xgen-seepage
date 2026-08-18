@@ -160,13 +160,14 @@ lo.set_cell(doc, sheet=0, row=1, col=2, value="1500")
 lo.save(doc)
 ```
 
-## 노출되는 도구 (37개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
+## 노출되는 도구 (38개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
 
 **Excel(열려 있는 통합문서)**
 
 | 도구 | 설명 |
 |---|---|
 | `list_open_workbooks` | 로컬에서 실행 중인 모든 Excel의 열린 통합문서 목록. **항상 첫 호출** |
+| `get_workbook_overview` | **통합문서 전체 구조 한 번에** — 모든 시트의 크기·미리보기·수식여부. 복잡한 파일 파악의 시작점 |
 | `get_live_schema` | 시트 크기·미리보기·병합·수식 존재 여부 |
 | `get_live_cell` | 셀 하나의 값+수식+병합 정보 전체(절단 없이) |
 | `set_live_cell` | 셀 하나 즉시 갱신(수식 지원, 숫자 자동판정, 병합 anchor 리다이렉트) |

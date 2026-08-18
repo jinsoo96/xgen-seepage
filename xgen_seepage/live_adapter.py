@@ -308,6 +308,20 @@ def get_sheet_schema(
     )
 
 
+def get_workbook_overview(workbook_id: str | None = None, preview_rows: int = 6) -> dict[str, Any]:
+    """통합문서 **전체 구조**를 한 번에 반환한다 - 모든 시트의 크기·미리보기·
+    수식 존재 여부·병합 정보. 시트가 많은 복잡한 파일을 에이전트가 한 눈에
+    파악하고 그 안에서 작업하도록 하기 위한 것. 여기서 전체를 파악한 뒤,
+    필요한 시트/범위만 read_range로 자세히 읽으면 된다."""
+    book = _resolve_book(workbook_id)
+    n = len(book.sheets)
+    sheets = [
+        get_sheet_schema(workbook_id, sheet=i, preview_rows=preview_rows).to_dict()
+        for i in range(n)
+    ]
+    return {"name": book.name, "sheet_count": n, "sheets": sheets}
+
+
 def get_cell(workbook_id: str | None, sheet: int | str, row: int, col: int) -> CellContent:
     """셀 하나의 값·수식·병합 정보를 전부 반환한다(미리보기의 40~60자 절단 없이)."""
     ws = _sheet(workbook_id, sheet)

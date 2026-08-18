@@ -21,6 +21,10 @@ def list_open_workbooks() -> dict[str, Any]:
     return {"workbooks": [b.to_dict() for b in books]}
 
 
+def get_workbook_overview(workbook_id: str | None = None, preview_rows: int = 6) -> dict[str, Any]:
+    return live_adapter.get_workbook_overview(workbook_id, preview_rows)
+
+
 def get_live_schema(workbook_id: str | None = None, sheet: int | str = 0,
                      preview_rows: int = 12, max_cell_len: int = 60) -> dict[str, Any]:
     schema = live_adapter.get_sheet_schema(
@@ -241,9 +245,29 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "로컬에서 실행 중인 모든 Excel 인스턴스의 열려 있는 통합문서 목록을 "
             "반환한다. 라이브 편집 도구(get_live_schema/set_live_cell/...)를 쓰기 "
             "전에 항상 먼저 호출해서 workbook_id를 확보해야 한다. workbook_id를 "
-            "생략하면 이후 호출은 '현재 활성 통합문서'를 임의로 집는다."
+            "생략하면 이후 호출은 '현재 활성 통합문서'를 임의로 집는다. "
+            "★편집 원칙: 사용자의 원본을 보존한다. 먼저 get_live_schema/read_live_range로 "
+            "기존 내용·수식을 파악하고, 요청한 부분만 정확히 바꿔라(set_live_cell/색·서식 "
+            "도구로 그 셀만). 원본을 지우거나 통째로 다시 쓰지 말고, 시트 삭제/범위 전체 "
+            "덮어쓰기는 사용자가 명시적으로 요청할 때만 한다."
         ),
         "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "get_workbook_overview",
+        "description": (
+            "통합문서 **전체 구조**를 한 번에 파악한다 - 모든 시트의 크기·미리보기·"
+            "수식 존재 여부·병합. 시트가 여러 개인 복잡한 파일을 편집하기 전에 먼저 "
+            "이걸로 전체를 읽어 파악하고, 그 다음 필요한 시트/범위를 read_live_range로 "
+            "자세히 본다. 원본 구조를 이해한 뒤 그 안에서 작업하기 위한 시작점."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "workbook_id": {"type": "string"},
+                "preview_rows": {"type": "integer", "description": "시트별 미리보기 행 수(기본 6)"},
+            },
+        },
     },
     {
         "name": "get_live_schema",
@@ -321,8 +345,11 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "write_live_range",
         "description": (
-            "직사각형 범위를 한 번에 덮어쓴다(붙여넣기와 동일한 동작). "
-            "각 셀 값 앞에 '='를 붙이면 수식으로 해석된다. 최대 50,000셀."
+            "직사각형 범위를 한 번에 덮어쓴다. ⚠️ 지정한 범위의 기존 값·수식·서식이 "
+            "사라진다. 원본을 보존하며 편집하는 게 원칙이니: (1) 실제로 바꿀 셀만 좁게 "
+            "잡아라, (2) 이미 채워진 표/영역을 통째로 다시 쓰지 마라(수식·서식이 날아간다), "
+            "(3) 몇 개 셀만 바꾸는 거면 set_live_cell을 써라, (4) 주로 '빈 새 영역'을 채울 "
+            "때 쓴다. 값 앞에 '='를 붙이면 수식. 최대 50,000셀."
         ),
         "input_schema": {
             "type": "object",
@@ -408,7 +435,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     {
         "name": "delete_live_sheet",
-        "description": "시트를 삭제한다(마지막 한 장은 Excel이 삭제를 막는다).",
+        "description": "시트를 삭제한다(되돌릴 수 없다). ⚠️ 사용자가 시트 삭제를 명시적으로 요청할 때만 쓴다. 값을 바꾸는 작업에 시트를 지우고 다시 만들지 마라.",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -762,6 +789,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
 
 TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "list_open_workbooks": list_open_workbooks,
+    "get_workbook_overview": get_workbook_overview,
     "get_live_schema": get_live_schema,
     "get_live_cell": get_live_cell,
     "set_live_cell": set_live_cell,
