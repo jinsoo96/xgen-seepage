@@ -76,6 +76,13 @@ python -m PyInstaller packaging/xgen-seepage-connector.spec
 번들한다(안 그러면 얼린 exe가 `_ssl` DLL 로드 실패로 XGEN에 못 붙는다. 일반
 venv에선 자동으로 무관).
 
+**폐쇄망 TLS(내부 CA)**: 폐쇄망 XGEN이 사내 내부 CA로 발급한 HTTPS 인증서를
+쓰더라도, 그 CA가 PC의 OS 신뢰 저장소에 설치돼 있으면(폐쇄망에선 GPO로 보통
+이미 설치돼 있다) **별도 설정 없이 그대로 붙는다**. 커넥터가 certifi 고정
+목록이 아니라 OS 신뢰 저장소로 인증서를 검증하기 때문이다(`truststore`).
+CA가 OS에 안 깔려 있는 예외적 경우에만 `login --allow-private-certificate`로
+검증을 끌 수 있다(그 서버 한정, 권장하지 않음).
+
 **비대화형/대량 설치**(로그인을 스크립트로): 환경변수 `XGEN_SEEPAGE_SERVER_URL` /
 `XGEN_SEEPAGE_EMAIL` / `XGEN_SEEPAGE_PASSWORD`로 `login`을 자동화할 수 있다.
 

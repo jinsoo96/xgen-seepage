@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.14.3 (2026-08-17)
+
+**폐쇄망 내부 CA 대응 - OS 신뢰 저장소로 TLS 검증(설치파일 활용의 핵심).**
+xgen-connector를 참고하란 이유가 "설치파일로 들고 가 폐쇄망에서 쓰는 것"이라,
+그 관점으로 다시 파보니 TLS가 진짜 문제였다. xgen-connector는 Electron
+`net.fetch`(시스템 인증서 인지)로 폐쇄망 XGEN에 그대로 붙는데, 우리 커넥터는
+httpx 기본값인 `certifi`(고정 공개 CA 목록)만 봐서 **OS 신뢰 저장소를 안 봤다**.
+그래서 폐쇄망 내부 CA가 PC(OS)에 설치돼 있어도 XGEN 인증서를 거부해 접속이
+실패하고, 유일한 우회가 검증 전면 해제뿐이었다.
+
+- HTTP(httpx)·WebSocket 브릿지·태스크팬 프록시 모두 **OS 신뢰 저장소로 검증**
+  하도록 바꿈(`truststore`, 없으면 stdlib 기본 컨텍스트로 폴백. WS는
+  websockets가 이미 OS 저장소를 봤다). 내부 CA가 OS에 깔려 있으면(폐쇄망 GPO
+  기본) 별도 설정 없이 그대로 붙는다. `--allow-private-certificate`(검증 해제)는
+  CA가 OS에 없는 예외적 최후 수단으로만.
+- 실측: OS 신뢰 컨텍스트(truststore·stdlib 폴백)로 실제 dev-xgen(공개 인증서)에
+  TLS 핸드셰이크 성공(회귀 없음). `truststore` 의존성 추가 + 스펙 hiddenimport.
+
 ## 0.14.2 (2026-08-17)
 
 **얼린 exe가 실행이 안 되던 진짜 버그 수정(재검수로 발견).** 공개된 코드로

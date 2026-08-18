@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "xgen-seepage"
-version = "0.14.2"
+version = "0.14.3"
 description = "Standalone, offline-installable XGEN connector for Excel/CSV: logs into an XGEN server directly (own auth, own agent-tool bridge, no xgen-connector dependency) and lets XGEN agents edit live-open Excel workbooks and CSV files, formulas included. Works even without Excel installed via a LibreOffice(UNO) backend."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -63,6 +63,12 @@ dependencies = [
     "starlette>=0.37",
     "uvicorn>=0.30",
     "cryptography>=42",
+    # 폐쇄망 핵심: 내부/사설 CA로 HTTPS를 서비스하는 XGEN에 붙으려면 OS 신뢰
+    # 저장소를 봐야 한다. httpx 기본(certifi)은 OS 저장소를 안 봐서 내부 CA를
+    # 거부한다. truststore가 OS(윈도우 SChannel 등)에 검증을 위임한다
+    # (connection_security.py). 없으면 stdlib 폴백이라 하드 의존은 아니지만,
+    # 폐쇄망 신뢰성을 위해 기본 포함한다.
+    "truststore>=0.9",
 ]
 
 [project.optional-dependencies]

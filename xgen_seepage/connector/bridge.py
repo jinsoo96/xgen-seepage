@@ -31,7 +31,7 @@ from urllib.parse import quote
 import websockets
 from websockets.exceptions import ConnectionClosed
 
-from .connection_security import relaxed_ssl_context
+from .connection_security import default_ssl_context, relaxed_ssl_context
 
 log = logging.getLogger("xgen-seepage.bridge")
 
@@ -119,11 +119,17 @@ class ConnectorMcpBridge:
         token = await self._get_token()
         headers = {"Authorization": f"Bearer {token}"} if token else {}
         url = ws_url(server_url, user_id)
-        # 사설 CA 예외는 wss:// 에만 의미가 있다. ws:// 에 ssl 컨텍스트를
-        # 넘기면 websockets가 바로 에러를 낸다.
+        # TLS 컨텍스트는 wss:// 에만 의미가 있다(ws:// 에 넘기면 websockets가
+        # 바로 에러). 폐쇄망 내부 CA를 위해 기본도 OS 신뢰 저장소 컨텍스트를
+        # 명시적으로 넘긴다(HttpClient와 동일 정책, connection_security 참조).
+        # allow_private_certificate면 검증 전면 해제.
         ssl_kwarg: dict[str, Any] = {}
-        if self._allow_private_certificate and url.startswith("wss://"):
-            ssl_kwarg["ssl"] = relaxed_ssl_context()
+        if url.startswith("wss://"):
+            ssl_kwarg["ssl"] = (
+                relaxed_ssl_context()
+                if self._allow_private_certificate
+                else default_ssl_context()
+            )
         # compression=None: 실측(2026-08-13, 실제 XGEN dev 서버)에서 기본값인
         # permessage-deflate 확장을 켠 채로 접속하면 핸드셰이크는 성공하지만
         # hello를 보낸 직후 서버 쪽 프록시/게이트웨이가 close 프레임 없이

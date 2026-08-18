@@ -61,6 +61,9 @@ hiddenimports += [
     'uvicorn.protocols.websockets.auto',
     'uvicorn.lifespan.on',
     'uvicorn.lifespan.off',
+    # connection_security.py가 try 안에서 import한다(폐쇄망 OS 신뢰 저장소 TLS).
+    # import-guard라 정적 분석이 놓칠 수 있어 명시한다.
+    'truststore',
 ]
 
 # libreoffice_adapter.py launches _uno_worker.py by file path
