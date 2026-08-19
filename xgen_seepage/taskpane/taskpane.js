@@ -12,11 +12,36 @@ const input = document.getElementById("input");
 const sendBtn = document.getElementById("send");
 const agentSel = document.getElementById("agent");
 const reloadBtn = document.getElementById("reload");
-const providerSel = document.getElementById("provider");
+const toastEl = document.getElementById("toast");
 
 function setStatus(text, cls) {
   statusEl.textContent = text;
   statusEl.className = "status" + (cls ? " " + cls : "");
+}
+
+/** 화면 하단에 잠깐 뜨는 알림 토스트. type: "warn"|"error"|"info". */
+let _toastTimer = null;
+function showToast(text, type) {
+  toastEl.textContent = text;
+  toastEl.className = "toast show" + (type ? " " + type : "");
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { toastEl.className = "toast"; }, 6000);
+}
+
+/** 실행 에러가 LLM 모델 미설정으로 보이면, 캔버스에서 노드 모델을 설정하라고
+ * 토스트로 안내한다(패널엔 모델 토글이 없다 - 모델은 에이전트플로우의
+ * 에이전트 노드 설정을 그대로 쓴다). 그 외 에러는 일반 에러 토스트. */
+function maybeLlmToast(detail) {
+  const s = String(detail || "").toLowerCase();
+  if (/no model loaded|model|provider|connection attempts failed|llm|503/.test(s)) {
+    showToast(
+      "이 에이전트에 LLM 모델이 설정돼 있지 않은 것 같습니다. XGEN 캔버스에서 " +
+      "에이전트 노드의 모델을 설정한 뒤 다시 시도하세요.",
+      "warn"
+    );
+  } else {
+    showToast(`실행 에러: ${detail}`.slice(0, 200), "error");
+  }
 }
 
 function addMessage(text, cls) {
@@ -66,29 +91,6 @@ async function loadAgents() {
 
 /** XGEN 커넥터(로컬 서버)에 붙어 있는지 확인하고 준비 상태로 만든다.
  * office.js가 아니라 이 연결이 이 패널의 유일한 의존성이다. */
-/** provider/model 드롭다운을 채운다. 서버에 설정된 provider의 모델을 골라
- * 실행에 주입 - 워크플로우 provider가 비어 "No model loaded 503"이 나는 걸
- * 피한다. "서버 기본값"을 그대로 두면 주입 안 하고 서버가 알아서 고른다. */
-async function loadProviders() {
-  try {
-    const resp = await fetch("/providers");
-    if (!resp.ok) return;
-    const data = await resp.json();
-    const list = data.providers || [];
-    providerSel.innerHTML = '<option value="">서버 기본값</option>';
-    for (const p of list) {
-      const opt = document.createElement("option");
-      opt.value = p.provider;
-      opt.dataset.model = p.default_model || "";
-      opt.textContent = p.default_model ? `${p.provider} (${p.default_model})` : p.provider;
-      providerSel.appendChild(opt);
-    }
-    providerSel.disabled = false;
-  } catch (e) {
-    /* provider 목록 실패는 치명적이지 않다 - 서버 기본값으로 진행 */
-  }
-}
-
 /** 지금 붙은 XGEN 서버와 로그인 계정을 헤더에 보여준다. 엉뚱한 서버(jeju
  * 대신 prod 등)에 붙어 403이 나는 상황을, 사용자가 눈으로 바로 잡게 한다. */
 async function loadServerInfo() {
@@ -121,7 +123,6 @@ async function init() {
   }
   loadServerInfo();
   loadAgents();
-  loadProviders();
 }
 
 reloadBtn.addEventListener("click", loadAgents);
@@ -179,7 +180,9 @@ function handleEvent(eventName, data, assistantDiv) {
       return assistantDiv;
     }
     if (data.type === "error") {
-      addMessage(`[에러] ${data.detail || JSON.stringify(data)}`, "error");
+      const detail = data.detail || JSON.stringify(data);
+      addMessage(`[에러] ${detail}`, "error");
+      maybeLlmToast(detail);
       return assistantDiv;
     }
     if (data.type === "end") {
@@ -201,16 +204,16 @@ async function sendMessage(message) {
   sendBtn.disabled = true;
   let assistantDiv = null;
   try {
-    const provider = providerSel.value;
-    const model = provider ? (providerSel.selectedOptions[0].dataset.model || "") : "";
     const resp = await fetch("/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, workflow_id: workflowId, provider, model }),
+      body: JSON.stringify({ message, workflow_id: workflowId }),
     });
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({}));
-      addMessage(`[에러] ${resp.status} ${body.message || resp.statusText}`, "error");
+      const detail = body.message || resp.statusText;
+      addMessage(`[에러] ${resp.status} ${detail}`, "error");
+      maybeLlmToast(`${resp.status} ${detail}`);
       return;
     }
     const reader = resp.body.getReader();
@@ -231,6 +234,7 @@ async function sendMessage(message) {
     }
   } catch (e) {
     addMessage(`[연결 실패] ${e.message}`, "error");
+    showToast(`커넥터 연결 실패: ${e.message}`, "error");
   } finally {
     input.disabled = false;
     sendBtn.disabled = false;
