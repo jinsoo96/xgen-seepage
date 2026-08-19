@@ -244,6 +244,18 @@ def set_live_autofilter(sheet: int | str, row0: int, col0: int, row1: int, col1:
     return {"ok": True}
 
 
+def set_live_wrap_text(sheet: int | str, row0: int, col0: int, row1: int, col1: int,
+                       wrap: bool = True, autofit_rows: bool = True,
+                       workbook_id: str | None = None) -> dict[str, Any]:
+    live_adapter.set_wrap_text(workbook_id, sheet, row0, col0, row1, col1, wrap, autofit_rows)
+    return {"ok": True}
+
+
+def get_live_table_region(sheet: int | str, row: int, col: int,
+                          workbook_id: str | None = None) -> dict[str, Any]:
+    return live_adapter.get_table_region(workbook_id, sheet, row, col)
+
+
 # -------- CSV(파일) 도구 --------
 
 
@@ -800,6 +812,24 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "on": {"type": "boolean", "default": True}},
             "required": ["sheet", "row0", "col0", "row1", "col1"]}},
     {
+        "name": "set_live_wrap_text",
+        "description": "범위 셀에 자동 줄바꿈을 켜거나(wrap=true) 끈다. 셀 내용이 길어 잘려 보일 때 이걸 켜면 내용이 셀 안에서 줄바꿈돼 다 보이고, autofit_rows=true(기본)면 행 높이도 내용에 맞춰 늘어난다(열 너비는 안 건드림). 열 너비만 넓혀 한 줄로 다 보이게 하려면 autofit_live를 쓴다. 좌표 0-based.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row0": {"type": "integer"}, "col0": {"type": "integer"},
+            "row1": {"type": "integer"}, "col1": {"type": "integer"},
+            "wrap": {"type": "boolean", "default": True},
+            "autofit_rows": {"type": "boolean", "default": True}},
+            "required": ["sheet", "row0", "col0", "row1", "col1"]}},
+    {
+        "name": "get_live_table_region",
+        "description": "지정한 셀이 속한 '표'의 범위를 반환한다. 값·테두리·서식으로 그려 놓은 표의 실제 경계(빈 행·열로 둘러싸인 연속 블록, Excel의 현재 영역/Ctrl+A)를 잡아 준다. 표가 어디부터 어디까지인지 정확히 알아야 할 때(헤더 위치·데이터 범위 판단) 먼저 호출한다. 반환: row0/col0/row1/col1(0-based, 포함) + n_rows/n_cols.",
+        "input_schema": {"type": "object", "properties": {
+            "workbook_id": {"type": "string"}, "sheet": {"description": "시트 인덱스 또는 이름"},
+            "row": {"type": "integer", "description": "표 안 아무 셀의 행(0-based)"},
+            "col": {"type": "integer", "description": "표 안 아무 셀의 열(0-based)"}},
+            "required": ["sheet", "row", "col"]}},
+    {
         "name": "inspect_csv",
         "description": (
             "CSV 파일의 구조를 조사한다: 인코딩/구분자를 자동 감지하고 크기·헤더· "
@@ -1083,6 +1113,8 @@ TOOL_HANDLERS: dict[str, Callable[..., dict[str, Any]]] = {
     "find_replace_live": find_replace_live,
     "set_live_data_validation": set_live_data_validation,
     "set_live_autofilter": set_live_autofilter,
+    "set_live_wrap_text": set_live_wrap_text,
+    "get_live_table_region": get_live_table_region,
     "inspect_csv": inspect_csv,
     "get_csv_cell": get_csv_cell,
     "set_csv_cell": set_csv_cell,

@@ -160,7 +160,7 @@ lo.set_cell(doc, sheet=0, row=1, col=2, value="1500")
 lo.save(doc)
 ```
 
-## 노출되는 도구 (55개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
+## 노출되는 도구 (57개. `xgen-seepage run`이 XGEN 에이전트 세션에 자동 광고)
 
 **Excel(열려 있는 통합문서)**
 
@@ -185,6 +185,8 @@ lo.save(doc)
 | `autofit_live` | 열 너비·행 높이를 내용에 맞춤 |
 | `set_live_column_width` / `set_live_row_height` | 열 너비 / 행 높이 지정 |
 | `set_live_borders` | 테두리(격자 전체/바깥/개별 변, 두께 thin·medium·thick) |
+| `set_live_wrap_text` | 셀 자동 줄바꿈(긴 내용 다 보이게, 행 높이 자동 맞춤) |
+| `get_live_table_region` | 특정 셀이 속한 표의 실제 범위(테두리·빈 행/열 기준) |
 | `sort_live_range` | 특정 열 기준 정렬(Excel 네이티브 - 행 전체 서식·수식 보존) |
 | `color_live_rows_where` | **조건부 행 강조** — '어떤 열=값'인 행을 한 번에 색칠(행 안 짚어 어긋남 방지) |
 | `clear_live_range` | 범위의 값/서식 지우기 |

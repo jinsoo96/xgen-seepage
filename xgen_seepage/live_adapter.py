@@ -1022,3 +1022,37 @@ def set_autofilter(workbook_id: str | None, sheet: int | str,
     else:
         if ws.api.AutoFilterMode:
             ws.api.AutoFilterMode = False
+
+
+def set_wrap_text(workbook_id: str | None, sheet: int | str,
+                  row0: int, col0: int, row1: int, col1: int,
+                  wrap: bool = True, autofit_rows: bool = True) -> None:
+    """범위 셀의 자동 줄바꿈을 켜거나(wrap=True) 끈다. wrap이면 긴 내용이 셀
+    안에서 줄바꿈돼 잘리지 않고 다 보이고, autofit_rows면 행 높이를 내용에
+    맞춰 늘려 전체가 보이게 한다(열 너비는 건드리지 않는다)."""
+    rng = _rng(workbook_id, sheet, row0, col0, row1, col1)
+    if platform.system() == "Windows":
+        rng.api.WrapText = bool(wrap)
+    else:
+        rng.api.wrap_text.set(bool(wrap))
+    if wrap and autofit_rows:
+        try:
+            rng.rows.autofit()  # 행 높이만 맞춘다(열은 그대로 두고 줄바꿈 유지)
+        except Exception:
+            pass
+
+
+def get_table_region(workbook_id: str | None, sheet: int | str,
+                     row: int, col: int) -> dict[str, Any]:
+    """지정한 셀(row,col, 0-based)이 속한 표의 범위를 돌려준다. Excel의 현재
+    영역(current region: 빈 행·열로 둘러싸인 연속 블록. Ctrl+A로 잡히는 그
+    범위)을 기준으로 한다. 표를 값·테두리·서식으로 그려 놓았을 때 그 표의
+    실제 경계를 잡는 데 쓴다. 반환 좌표는 0-based(포함)."""
+    ws = _sheet(workbook_id, sheet)
+    reg = ws.range((row + 1, col + 1)).current_region
+    r0, c0 = reg.row - 1, reg.column - 1
+    r1, c1 = reg.last_cell.row - 1, reg.last_cell.column - 1
+    return {
+        "row0": r0, "col0": c0, "row1": r1, "col1": c1,
+        "n_rows": r1 - r0 + 1, "n_cols": c1 - c0 + 1,
+    }
