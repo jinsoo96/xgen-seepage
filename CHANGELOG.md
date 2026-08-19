@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.21.0 (2026-08-19)
+
+**라이브 도구 API 재설계 - 파라미터가 균질한 조작을 응집도 높은 액션 도구로.**
+도구 수를 무작정 줄이는 임시방편(모드 토글) 대신, 성격이 같은 조작을 하나의
+action 도구로 묶어 스키마를 깔끔하게 재구성했다. 노출 도구 57 → 40개. 모든
+액션을 macOS에서 call_tool 경유로 실동작 검증.
+
+- `format_live_range(action=…)`: 범위 서식 통합 - fill_color / font / number_format /
+  borders / wrap / merge / unmerge / data_validation / clear (개별 도구 9개를 흡수).
+- `edit_live_rows_columns(action=…)`: 행·열 삽입/삭제 (4개 흡수).
+- `set_live_visibility(action=…)`: 행·열 숨김/표시 (2개 흡수).
+- `resize_live(action=…)`: 열너비/행높이 (2개 흡수).
+- `manage_live_sheet(action=…)`: 시트 목록/추가/이름변경/삭제/이동 (5개 흡수).
+- `manage_live_name(action=…)`: 이름정의 목록/추가/삭제 (3개 흡수).
+- 성격이 뚜렷한 도구(조회·값편집·color_rows_where·copy·freeze·autofilter·autofit·
+  activate·find_replace·recalculate)는 단일 도구로 그대로 유지.
+- **누락돼 있던 `sort_live_range`(정렬)·범위 clear를 정식 노출** — live_adapter엔
+  구현돼 있었으나 도구로 광고되지 않던 것. sort는 단일 도구, clear는
+  format_live_range의 action으로 노출.
+
 ## 0.20.0 (2026-08-19)
 
 **긴 셀 내용 다 보이게 + 표 범위 인식.** 실무 표를 다룰 때 자주 필요한 두 가지.
