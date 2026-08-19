@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
 import uvicorn
 from starlette.applications import Starlette
@@ -181,6 +181,18 @@ class _ChatApiHandler:
         return StreamingResponse(_combined(), media_type="text/event-stream")
 
 
+class _NoCacheStaticFiles(StaticFiles):
+    """정적 응답에 `Cache-Control: no-cache`를 붙인다. 이게 없으면 브라우저·
+    특히 Excel 태스크팬 웹뷰가 예전 index.html/taskpane.js를 캐시해, 패널을
+    고쳐도 새로고침만으로는 반영이 안 된다. no-cache는 매번 서버에 재검증하게
+    해(etag 그대로 활용) 바뀌었을 때만 새로 받는다."""
+
+    async def get_response(self, path: str, scope: Any) -> Any:
+        resp = await super().get_response(path, scope)
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
+
 def _build_app(chat_handler: _ChatApiHandler | None) -> Starlette:
     routes: list[BaseRoute] = [
         Route("/health", _health),
@@ -190,7 +202,7 @@ def _build_app(chat_handler: _ChatApiHandler | None) -> Starlette:
         routes.append(Route("/workflows", chat_handler.list_workflows, methods=["GET"]))
         routes.append(Route("/chat/stream", chat_handler.chat_stream, methods=["POST"]))
     if _TASKPANE_DIR.is_dir():
-        routes.append(Mount("/", app=StaticFiles(directory=str(_TASKPANE_DIR), html=True)))
+        routes.append(Mount("/", app=_NoCacheStaticFiles(directory=str(_TASKPANE_DIR), html=True)))
     else:
         log.warning("taskpane 정적 자산 폴더가 없습니다: %s (정적 서빙 비활성)", _TASKPANE_DIR)
     return Starlette(routes=routes)
