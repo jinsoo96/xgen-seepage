@@ -54,6 +54,26 @@ class AuthApi:
             username=res.get("username", email),
         )
 
+    async def login_with_token(self, sso_token: str) -> LoginResult:
+        """SSO 토큰으로 로그인한다(이메일·비밀번호 없이). 게이트웨이가 이 토큰을
+        SSO 토큰으로 검증해 access/refresh를 발급한다. SSO가 켜진 XGEN 배포에서
+        미리 얻은 토큰(예: SSO 로그인 페이지가 돌려준 토큰)을 넘긴다. 같은
+        `/api/auth/login`에 email/password 대신 token만 실어 보낸다."""
+        res = await self._http.post(
+            "/api/auth/login",
+            {"token": sso_token},
+            auth=False,
+        )
+        if not res.get("success") or not res.get("access_token"):
+            raise RuntimeError(res.get("message") or "SSO 로그인에 실패했습니다.")
+        return LoginResult(
+            access_token=res["access_token"],
+            refresh_token=res.get("refresh_token"),
+            token_type=res.get("token_type", "bearer"),
+            user_id=res.get("user_id", ""),
+            username=res.get("username", ""),
+        )
+
     async def validate(
         self, access_token: str, refresh_token: str | None = None
     ) -> tuple[CurrentUser | None, str | None]:

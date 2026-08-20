@@ -105,7 +105,9 @@ xgen-seepage panel                 # 채팅 패널을 기본 브라우저로 열
    - macOS: `~/Library/LaunchAgents`에 LaunchAgent plist 등록 후 `launchctl load`.
 3. **토큰 provisioning** — 최초 1회 `login`으로 토큰을 심어두거나, 배포 스크립트가 환경변수
    `XGEN_SEEPAGE_SERVER_URL` / `XGEN_SEEPAGE_EMAIL` / `XGEN_SEEPAGE_PASSWORD`로 자동
-   로그인하게 합니다. 이후 재부팅마다 저장된 토큰으로 자동 접속합니다.
+   로그인하게 합니다. **SSO가 켜진 XGEN 배포면** 비밀번호 대신 `XGEN_SEEPAGE_SSO_TOKEN`
+   (또는 `login --sso-token`)으로 발급된 SSO 토큰을 넘겨 비밀번호 없이 로그인합니다.
+   이후 재부팅마다 저장된 토큰으로 자동 접속합니다.
 
 → 이 셋이면 사용자는 부팅만 해도 커넥터가 이미 연결돼 있어, XGEN에서 에이전트와 채팅하면
 그 에이전트가 곧바로 엑셀을 편집합니다. 커넥터는 한 번 뜨면 연결이 끊겨도 자동으로
@@ -174,7 +176,7 @@ xgen-seepage는 XGEN 서버가 도구 호출을 이 로컬 프로세스로 되�
 
 | 명령 | 설명 |
 |---|---|
-| `xgen-seepage login` | XGEN 서버에 로그인하고 토큰을 서버별로 저장합니다. |
+| `xgen-seepage login` | XGEN 서버에 로그인하고 토큰을 서버별로 저장합니다. `--sso-token <token>`(또는 `XGEN_SEEPAGE_SSO_TOKEN`)으로 SSO가 켜진 배포에서는 비밀번호 없이 로그인합니다. |
 | `xgen-seepage run` | 에이전트-도구 브릿지와 채팅 패널 서버를 상주시킵니다(`--open-panel`로 패널 자동 열기). |
 | `xgen-seepage server list` / `use` | 로그인해 본 서버를 확인하고 전환합니다. |
 | `xgen-seepage panel` | 채팅 패널을 기본 브라우저로 엽니다(`run` 필요). |

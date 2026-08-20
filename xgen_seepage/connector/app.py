@@ -71,6 +71,7 @@ def _pick_server(known: list[str]) -> str:
 
 async def cmd_login(args: argparse.Namespace) -> int:
     server_url = args.server or _env("SERVER_URL")
+    sso_token = getattr(args, "sso_token", None) or _env("SSO_TOKEN")
     email = args.email or _env("EMAIL")
     password = args.password or _env("PASSWORD")
     allow_private_certificate = args.allow_private_certificate
@@ -80,15 +81,19 @@ async def cmd_login(args: argparse.Namespace) -> int:
     existing = cfgmod.load_config()
     if not server_url:
         server_url = _pick_server(existing.known_servers)
-    if not email:
-        email = input("이메일: ").strip()
-    if not password:
-        password = getpass.getpass("비밀번호: ")
 
     http = HttpClient(server_url, allow_private_certificate=allow_private_certificate)
     auth = AuthApi(http)
     try:
-        result = await auth.login(email, password)
+        if sso_token:
+            # 비밀번호 없이 SSO 토큰으로 로그인(SSO가 켜진 XGEN 배포에서 발급된 토큰).
+            result = await auth.login_with_token(sso_token)
+        else:
+            if not email:
+                email = input("이메일: ").strip()
+            if not password:
+                password = getpass.getpass("비밀번호: ")
+            result = await auth.login(email, password)
     except (ApiError, RuntimeError) as e:
         print(f"로그인 실패: {e}", file=sys.stderr)
         return 1
@@ -527,6 +532,11 @@ def build_parser() -> argparse.ArgumentParser:
     login_p.add_argument("--server", help="XGEN 서버 URL")
     login_p.add_argument("--email", help="로그인 이메일")
     login_p.add_argument("--password", help="비밀번호(권장하지 않음. 대화형 입력 사용)")
+    login_p.add_argument(
+        "--sso-token",
+        help="SSO 토큰으로 로그인(이메일/비밀번호 없이). SSO가 켜진 XGEN 배포에서 발급된 토큰. "
+        "환경변수 XGEN_SEEPAGE_SSO_TOKEN로도 지정 가능.",
+    )
     login_p.add_argument(
         "--allow-private-certificate",
         action=argparse.BooleanOptionalAction,

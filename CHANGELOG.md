@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.22.0 (2026-08-19)
+
+**SSO 토큰 로그인 - 비밀번호 없이.** XGEN 게이트웨이 `/api/auth/login`이 email/password
+대신 `{token}`(SSO 토큰)만으로도 로그인을 받는다는 걸 실서버로 확인하고(더미 토큰에
+"Invalid SSO token" 응답), 그 경로를 지원. xgen-connector의 `loginWithToken`과 동일한
+계약을 독립 구현.
+
+- `AuthApi.login_with_token(sso_token)`: `/api/auth/login`에 token만 실어 로그인.
+- CLI `login --sso-token <token>`(또는 환경변수 `XGEN_SEEPAGE_SSO_TOKEN`): SSO가 켜진
+  XGEN 배포에서 발급된 토큰으로 이메일/비밀번호 없이 로그인.
+- 참고: SSO 토큰을 발급하는 SSO 로그인 페이지(`ssoPath`, 기본 `/sso/signin`)는 배포별
+  opt-in 기능이다(dev-xgen 미설정 → 404). SSO가 없는 배포에서는 기존 email/password
+  로그인을 쓴다 - 이는 xgen-connector도 동일(그 앱도 login/loginWithToken 둘 다 가짐).
+
 ## 0.21.0 (2026-08-19)
 
 **라이브 도구 API 재설계 - 파라미터가 균질한 조작을 응집도 높은 액션 도구로.**
