@@ -31,13 +31,14 @@ XGEN 서버에 로그인해 붙는 단일 프로세스로 동작하며, 지금 �
 대상 머신에 별도 런타임을 설치하지 않고, 미리 빌드한 단일 실행파일 하나만 반입해
 사용합니다.
 
-1. [Releases](https://github.com/jinsoo96/xgen-seepage/releases) 에서 대상 OS에 맞는
-   실행파일을 내려받습니다.
+1. 대상 OS 실행파일을 내려받습니다:
 
-   | OS | 파일 |
+   | OS | 다운로드 |
    |---|---|
-   | Windows (x64) | `xgen-seepage-connector.exe` |
-   | macOS (Apple Silicon / arm64) | `xgen-seepage-connector-macos-arm64` |
+   | Windows (x64) | **[xgen-seepage-connector.exe](https://github.com/jinsoo96/xgen-seepage/releases/latest/download/xgen-seepage-connector.exe)** |
+   | macOS (Apple Silicon / arm64) | **[xgen-seepage-connector-macos-arm64](https://github.com/jinsoo96/xgen-seepage/releases/latest/download/xgen-seepage-connector-macos-arm64)** |
+
+   (전체 버전은 [Releases](https://github.com/jinsoo96/xgen-seepage/releases) 참고)
 
 2. 대상 머신으로 복사한 뒤 그대로 실행합니다(`login` / `run` / `status` /
    `install-excel-addin` 동일).
