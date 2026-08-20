@@ -36,8 +36,8 @@ XGEN 서버에 로그인해 붙는 단일 프로세스로 동작하며, 지금 �
 
    | OS | 파일 |
    |---|---|
-   | Windows | `xgen-seepage-connector.exe` |
-   | macOS | `xgen-seepage-connector` |
+   | Windows (x64) | `xgen-seepage-connector.exe` |
+   | macOS (Apple Silicon / arm64) | `xgen-seepage-connector-macos-arm64` |
 
 2. 대상 머신으로 복사한 뒤 그대로 실행합니다(`login` / `run` / `status` /
    `install-excel-addin` 동일).
